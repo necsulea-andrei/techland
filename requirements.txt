@@ -1,0 +1,31 @@
+# ==============================================================================
+# TechLand - E-Commerce Platform Requirements
+# Academic Year 2026-2027 | Architecture & Dependencies based on P1.pdf
+# ==============================================================================
+
+# Core Web Framework (P1 Slide 4: Backend - Django Python)
+Django>=5.1.0,<6.0.0
+
+# Database Adapter (P1 Slide 4: Database - PostgreSQL with ACID transactions & row-level locking)
+psycopg2-binary>=2.9.9
+
+# Environment Configuration (P1 Slide 4 & README setup: .env handling)
+python-dotenv>=1.0.1
+django-environ>=0.11.2
+
+# Payment Processing (P1 Slide 4, 6 & 7: Requirement A6 - Stripe Sandbox & Webhooks)
+stripe>=10.0.0
+
+# Secure Password Hashing (P1 Slide 5: Requirement A4 - User accounts with bcrypt/Argon2)
+argon2-cffi>=23.1.0
+bcrypt>=4.1.2
+
+# Media & Image Processing (P1 Slide 6: Requirement A9 - Product & Category image uploads)
+Pillow>=10.2.0
+
+# Testing Suite (P1 Slide 6: Requirement A12 - Automated test suite executable via single command)
+pytest>=8.0.0
+pytest-django>=4.8.0
+
+# Production & Deployment (P1 Slide 5: Docker configuration & WSGI server)
+gunicorn>=21.2.0
