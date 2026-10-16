@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}TechLand Store — PC Hardware & Industrial PLCs{% endblock %}</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef6ff',
+                            600: '#1d4ed8',
+                            700: '#1e40af',
+                            900: '#172554'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="flex flex-col min-h-screen text-slate-800 antialiased">
+
+    <!-- Global Responsive Navigation Bar -->
+    <header class="sticky top-0 z-50 bg-slate-900 border-b border-slate-800 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16 gap-4">
+
+                <!-- Logo & Brand -->
+                <div class="flex items-center gap-3 shrink-0">
+                    <a href="/" class="flex items-center gap-2">
+                        <span
+                            class="p-2 bg-brand-600 rounded-lg text-white font-black tracking-widest text-lg">TL</span>
+                        <span class="text-xl font-bold tracking-tight text-white">Tech<span
+                                class="text-blue-500">Land</span></span>
+                    </a>
+                </div>
+
+                <!-- Global Search Input (A2 Requirement) -->
+                <div class="flex-1 max-w-lg hidden md:block">
+                    <form method="GET" action="/" class="relative">
+                        <input type="text" name="q" value="{{ request.GET.q|default:'' }}"
+                            placeholder="Search processors, SSDs, PLCs, power modules..."
+                            class="w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg pl-4 pr-10 py-2 focus:outline-none focus:ring-2 focus:ring-brand-600 placeholder-slate-400">
+                        <button type="submit"
+                            class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-white">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Navigation Links / User Authentication Status (A4) -->
+                <div class="flex items-center gap-4 text-sm font-medium">
+                    {% if user.is_authenticated %}
+                    <div class="flex items-center gap-3">
+                        <span class="text-slate-300 hidden sm:inline">Signed in as <strong class="text-white">{{
+                                user.username }}</strong></span>
+                        {% if user.is_staff %}
+                        <a href="/admin/"
+                            class="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-1 rounded hover:bg-amber-500/20">Admin</a>
+                        {% endif %}
+                        <form method="POST" action="{% url 'logout' %}" class="inline">
+                            {% csrf_token %}
+                            <button type="submit"
+                                class="text-slate-300 hover:text-white px-3 py-1.5 rounded-md hover:bg-slate-800 transition">Log
+                                out</button>
+                        </form>
+                    </div>
+                    {% else %}
+                    <a href="{% url 'login' %}"
+                        class="text-slate-300 hover:text-white px-3 py-1.5 rounded-md transition">Sign in</a>
+                    <a href="{% url 'register' %}"
+                        class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition">Register</a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Mobile Search Bar (Viewports < 768px down to 360px) -->
+            <div class="pb-3 md:hidden">
+                <form method="GET" action="/" class="relative">
+                    <input type="text" name="q" value="{{ request.GET.q|default:'' }}"
+                        placeholder="Search hardware or PLCs..."
+                        class="w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg pl-3 pr-10 py-2 focus:ring-2 focus:ring-brand-600">
+                    <button type="submit" class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </header>
+
+    <!-- Global Notification Messages -->
+    {% if messages %}
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 w-full">
+        {% for message in messages %}
+        <div
+            class="p-4 rounded-lg text-sm font-medium mb-2 {% if message.tags == 'error' %}bg-rose-50 text-rose-800 border border-rose-200{% elif message.tags == 'success' %}bg-emerald-50 text-emerald-800 border border-emerald-200{% else %}bg-blue-50 text-blue-800 border border-blue-200{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 border-t border-slate-800 text-slate-400 text-xs py-8 mt-auto">
+        <div
+            class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <p>© 2026 TechLand Store. PC Hardware & Industrial Automation Systems.</p>
+            <div class="flex gap-6">
+                <span>E-Commerce Academic Project</span>
+                <span>Team: Andrei & Alexandru</span>
+            </div>
+        </div>
+    </footer>
+</body>
+
+</html>
