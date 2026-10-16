@@ -52,4 +52,43 @@ pip install -r requirements.txt
 
 # 5. Apply migrations and start server
 python manage.py migrate && python manage.py runserver
+
+#6.run docker commands
+
+docker compose up -d #start container
+docker compose ps #list containers
+docker compose down #stop containers
+docker compose down -v #stop containers and remove volumes
+docker compose logs -f db #follow logs
+
+#7.create super user
+python manage.py createsuperuser
+
+#8.run tests
+python manage.py test
 ```
+
+---
+
+## 5. Current Implementation Status (P2 Milestone)
+
+All core deliverables and working prototype requirements for **Presentation 2 (P2)** have been completed across three logical phases:
+
+### Phase 1: Infrastructure, Data Modeling & Database Seeding (Done)
+- [x] **Containerized Relational Database**: Configured PostgreSQL 16 via Docker Compose (`docker-compose.yml`) connected to Django through environment variables (`.env`).
+- [x] **Catalog Data Model**: Implemented `Category` and `Product` models featuring slugified routing, unique SKUs, stock levels, decimal pricing, and media attachments.
+- [x] **User Accounts & Address Architecture (A4)**: Configured custom `Address` model with foreign key relationships, delivery metadata, and automatic single-default (`is_default`) enforcement.
+- [x] **Database Seed Script**: Built custom management command (`python manage.py seed_data`) populating 32 realistic products across 4 dedicated industrial/consumer categories with full attribute specifications.
+- [x] **Admin Inspection Panels**: Enabled Django admin views for real-time validation and management of categories, inventory, and saved addresses.
+
+### Phase 2: Design System, Layout & User Authentication (Done)
+- [x] **Responsive Master Layout (A11)**: Built mobile-first `base.html` template utilizing Tailwind CSS, tested and fully functional down to 360 px width.
+- [x] **Global Navigation & UI Elements**: Implemented responsive navbar with category dropdowns, sticky search bar, dynamic authentication states, and footer.
+- [x] **Authentication Flow (A4)**: Integrated complete user registration, secure login/logout views, password hashing (PBKDF2/bcrypt-compatible), and session management.
+
+### Phase 3: Catalog Browsing & Search Prototype (Done)
+- [x] **Paginated Product Catalog (A1)**: Implemented server-side paginated product listing (at most 24 items per page) with category-specific filtering.
+- [x] **Product Detail View (A1)**: Dedicated product view displaying full technical descriptions, dynamic stock badges, price tags, and high-resolution visuals.
+- [x] **Text Search Engine (A2)**: Built case-insensitive server-side search querying product names with dedicated empty-state feedback.
+
+---

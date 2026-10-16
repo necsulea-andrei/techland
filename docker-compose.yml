@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: techland_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME:-ecommerce_db}
+      POSTGRES_USER: ${DB_USER:-ecommerce_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ecommerce_password}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
