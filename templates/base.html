@@ -62,8 +62,8 @@
                 <div class="flex items-center gap-4 text-sm font-medium">
                     {% if user.is_authenticated %}
                     <div class="flex items-center gap-3">
-                        <span class="text-slate-300 hidden sm:inline">Signed in as <strong class="text-white">{{
-                                user.username }}</strong></span>
+                        <span class="text-slate-300 hidden sm:inline">Signed in as <strong class="text-white">
+                                {{ user.username }}</strong></span>
                         {% if user.is_staff %}
                         <a href="/admin/"
                             class="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-1 rounded hover:bg-amber-500/20">Admin</a>
