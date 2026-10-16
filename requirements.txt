@@ -1,4 +1,4 @@
-# ==============================================================================
+source venv/bin/activatesource venv/bin/activate# ==============================================================================
 # TechLand - E-Commerce Platform Requirements
 # Academic Year 2026-2027 | Architecture & Dependencies based on P1.pdf
 # ==============================================================================

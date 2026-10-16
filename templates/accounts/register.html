@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block title %}Register Account — TechLand Store{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto bg-white p-8 border border-slate-200 rounded-xl shadow-sm">
+    <div class="text-center mb-6">
+        <h2 class="text-2xl font-bold text-slate-900">Create New Account</h2>
+        <p class="text-sm text-slate-500 mt-1">Register to purchase PC parts and industrial automation modules</p>
+    </div>
+
+    <form method="POST" action="{% url 'register' %}" class="space-y-4">
+        {% csrf_token %}
+
+        {% for field in form %}
+        <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">
+                {{ field.label }}
+            </label>
+            <input type="{{ field.field.widget.input_type }}" name="{{ field.name }}" id="{{ field.id_for_label }}"
+                required
+                class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent">
+            {% if field.help_text %}
+            <p class="text-[11px] text-slate-400 mt-1">{{ field.help_text }}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <button type="submit"
+            class="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-sm transition text-sm mt-2">
+            Create Account
+        </button>
+    </form>
+
+    <div class="mt-6 pt-6 border-t border-slate-100 text-center text-xs text-slate-500">
+        Already registered?
+        <a href="{% url 'login' %}" class="text-blue-600 font-semibold hover:underline">Sign in here</a>
+    </div>
+</div>
+{% endblock %}
