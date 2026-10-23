@@ -1,16 +1,19 @@
-from django.core.management.base import BaseCommand
-from catalog.models import Category, Product
 from decimal import Decimal
+from django.core.management.base import BaseCommand
+from django.utils.text import slugify
+from catalog.models import Category, Product, ProductImage
+
 
 class Command(BaseCommand):
     help = 'Seeds the database with at least 30 products across 4 categories'
 
     def handle(self, *args, **options):
         self.stdout.write("Cleaning previous catalog data...")
+        ProductImage.objects.all().delete()
         Product.objects.all().delete()
         Category.objects.all().delete()
 
-        # 4 Categorii conform nisei
+        # 4.categorii conform nisei
         categories_data = [
             {"name": "Processors & CPUs", "description": "High performance consumer and workstation desktop CPUs."},
             {"name": "Memory & Storage", "description": "High-speed DDR5 RAM modules and ultra-fast NVMe PCIe SSDs."},
@@ -20,10 +23,14 @@ class Command(BaseCommand):
 
         categories = {}
         for cat_info in categories_data:
-            cat = Category.objects.create(name=cat_info["name"], description=cat_info["description"])
+            cat = Category.objects.create(
+                name=cat_info["name"],
+                slug=slugify(cat_info["name"]),
+                description=cat_info["description"]
+            )
             categories[cat_info["name"]] = cat
 
-        # Minim 30 de produse (8 + 8 + 8 + 8 = 32 produse)
+        # Cele 32 de produse din scriptul tau
         products_data = [
             # Categoria 1: Processors & CPUs (8 produse)
             {"category": "Processors & CPUs", "name": "AMD Ryzen 7 7800X3D", "sku": "CPU-AMD-7800X3D", "price": "2199.99", "stock": 15, "description": "8 cores, 16 threads, 3D V-Cache architecture, ideal for intensive workstation and simulation tasks."},
@@ -67,16 +74,24 @@ class Command(BaseCommand):
         ]
 
         for item in products_data:
-            Product.objects.create(
+            # Creare produs cu slug
+            product = Product.objects.create(
                 category=categories[item["category"]],
                 name=item["name"],
+                slug=slugify(item["name"]),
                 sku=item["sku"],
                 price=Decimal(item["price"]),
                 stock=item["stock"],
-                description=item["description"],
-                image=f"products/{item['sku'].lower()}.png"
+                is_active=True
+            )
+
+            #salvare imagine in tabela asociata ProductImage (1:N)
+            ProductImage.objects.create(
+                product=product,
+                image_url=f"products/{item['sku'].lower()}.png",
+                is_feature=True
             )
 
         self.stdout.write(self.style.SUCCESS(
-            f"Successfully seeded {Category.objects.count()} categories and {Product.objects.count()} products!"
+            f"Successfully seeded {Category.objects.count()} categories and {Product.objects.count()} products into 10-table schema!"
         ))
