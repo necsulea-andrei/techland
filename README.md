@@ -144,4 +144,4 @@ The final architecture for **Presentation 3 (P3)** integrates complete full-stac
 - [x] **Custom Administration Portal (A9)**:
   - Branded control portal header and dashboard (`TechLand Control Portal`) mapped for management operations.
   - Advanced search filters by title, SKU, order status, and category.
-  - Order management interface supporting administrative status transitions (`Paid` $\rightarrow$ `Shipped` $\rightarrow$ `Delivered`) and inline item inspection.
+  - Order management interface supporting administrative status transitions (`Paid` $\rightarrow$ `Shipped` $\rightarrow$ `Delivered`) and inline item inspection. 
