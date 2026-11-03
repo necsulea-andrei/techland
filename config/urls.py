@@ -20,7 +20,10 @@ urlpatterns = [
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('register/', account_views.register_view, name='register'),
     path('contact/', catalog_views.contact_view, name='contact'),
+    path('profile/', account_views.profile_view, name='profile'),
 
 #Orders, Cart & Stripe
     path('', include('orders.urls')),
 ]
+
+

@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from django.contrib import messages
 
 from .models import Cart, CartItem, Order, OrderItem
 from catalog.models import Product
@@ -131,31 +132,27 @@ def create_checkout_session(request):
     if not items.exists():
         return redirect('view_cart')
 
-    # Preluare sau atribuire adresă de livrare
+    # Alegere metodă livrare (standard / express)
+    shipping_method = request.POST.get('shipping_method', 'standard')
+    shipping_cost = Decimal('49.99') if shipping_method == 'express' else Decimal('0.00')
+
     user_addr = UserAddress.objects.filter(user=request.user, is_default=True).first()
     if not user_addr:
         user_addr = UserAddress.objects.filter(user=request.user).first()
     
-    if not user_addr:
-        address = Address.objects.create(
-            street_address="Strada Industriei Nr. 10",
-            city="Craiova",
-            postal_code="200000",
-            country="Romania"
-        )
-        UserAddress.objects.create(user=request.user, address=address, is_default=True)
-    else:
-        address = user_addr.address
+    address = user_addr.address if user_addr else None
 
-    # Creare comandă în starea inițială "New"
+    # Creare comandă cu cost livrare
+    total_with_shipping = cart.total_price + shipping_cost
     order = Order.objects.create(
         user=request.user,
         shipping_address=address,
+        shipping_method=shipping_method,
+        shipping_cost=shipping_cost,
         status='New',
-        total_amount=cart.total_price
+        total_amount=total_with_shipping
     )
 
-    # Copiere produse în OrderItem
     stripe_line_items = []
     for item in items:
         OrderItem.objects.create(
@@ -167,16 +164,24 @@ def create_checkout_session(request):
         stripe_line_items.append({
             'price_data': {
                 'currency': 'ron',
-                'product_data': {
-                    'name': item.product.name,
-                },
+                'product_data': {'name': item.product.name},
                 'unit_amount': int(item.product.price * 100),
             },
             'quantity': item.quantity,
         })
 
-    domain_url = request.build_absolute_uri('/')[:-1]
+    # Adăugare linie Stripe pentru transport dacă este express
+    if shipping_cost > 0:
+        stripe_line_items.append({
+            'price_data': {
+                'currency': 'ron',
+                'product_data': {'name': 'Express Industrial Delivery'},
+                'unit_amount': int(shipping_cost * 100),
+            },
+            'quantity': 1,
+        })
 
+    domain_url = request.build_absolute_uri('/')[:-1]
     checkout_session = stripe.checkout.Session.create(
         line_items=stripe_line_items,
         mode='payment',
@@ -200,12 +205,29 @@ def order_success(request):
     return render(request, 'orders/success.html', {'order': order})
 
 
+@require_POST
 @login_required
-def order_cancel(request):
-    order_id = request.GET.get('order_id')
+def order_cancel(request, order_id):
+    """Permite utilizatorului să anuleze comanda doar dacă nu a fost expediată și returnează stocul."""
     order = get_object_or_404(Order, id=order_id, user=request.user)
-    return render(request, 'orders/cancel.html', {'order': order})
 
+    if order.status not in ['New', 'Paid']:
+        messages.error(request, "Această comandă a fost deja expediată sau procesată și nu mai poate fi anulată direct.")
+        return redirect('profile')
+
+    with transaction.atomic():
+        # Dacă era plătită (adică stocul fusese deja scăzut), restaurăm stocul atomic
+        if order.status == 'Paid':
+            for item in order.items.select_related('product'):
+                prod = Product.objects.select_for_update().get(id=item.product.id)
+                prod.stock += item.quantity
+                prod.save()
+
+        order.status = 'Canceled'
+        order.save()
+
+    messages.success(request, f"Comanda #{order.id} a fost anulată cu succes, iar stocul a fost actualizat.")
+    return redirect('profile')
 
 @login_required
 def order_history(request):

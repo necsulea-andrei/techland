@@ -35,10 +35,8 @@
                 <!-- Logo & Brand -->
                 <div class="flex items-center gap-3 shrink-0">
                     <a href="/" class="flex items-center gap-2">
-                        <span
-                            class="p-2 bg-brand-600 rounded-lg text-white font-black tracking-widest text-lg">TL</span>
-                        <span class="text-xl font-bold tracking-tight text-white">Tech<span
-                                class="text-blue-500">Land</span></span>
+                        <span class="p-2 bg-brand-600 rounded-lg text-white font-black tracking-widest text-lg">TL</span>
+                        <span class="text-xl font-bold tracking-tight text-white">Tech<span class="text-blue-500">Land</span></span>
                     </a>
                 </div>
 
@@ -63,19 +61,43 @@
                     <a href="{% url 'contact' %}"
                         class="text-xs sm:text-sm font-medium text-slate-300 hover:text-white px-2 py-1.5 transition">Contact</a>
 
+                    <!-- Shopping Cart Button with Dynamic Badge -->
+                    <a href="{% url 'view_cart' %}"
+                        class="relative inline-flex items-center p-2 text-slate-300 hover:text-white transition" title="Shopping Cart">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z">
+                            </path>
+                        </svg>
+                        {% if navbar_cart_count > 0 %}
+                        <span
+                            class="absolute -top-1 -right-1 bg-blue-600 text-white text-[10px] font-extrabold w-5 h-5 flex items-center justify-center rounded-full border-2 border-slate-900 shadow">
+                            {{ navbar_cart_count }}
+                        </span>
+                        {% endif %}
+                    </a>
+
                     {% if user.is_authenticated %}
                     <div class="flex items-center gap-3">
-                        <span class="text-slate-300 hidden sm:inline">Signed in as <strong class="text-white">
-                                {{ user.username }}</strong></span>
+                        <!-- Profile Link with Icon -->
+                        <a href="{% url 'profile' %}"
+                            class="flex items-center gap-1.5 text-slate-300 hover:text-white px-2 py-1.5 rounded-lg hover:bg-slate-800/60 transition group"
+                            title="Go to Account & Order History">
+                            <svg class="w-4 h-4 text-blue-400 group-hover:text-blue-300 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            <span class="text-xs sm:text-sm font-semibold text-white">{{ user.username }}</span>
+                        </a>
+
                         {% if user.is_staff %}
                         <a href="/admin/"
                             class="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-1 rounded hover:bg-amber-500/20">Admin</a>
                         {% endif %}
+
                         <form method="POST" action="{% url 'logout' %}" class="inline">
                             {% csrf_token %}
                             <button type="submit"
-                                class="text-slate-300 hover:text-white px-3 py-1.5 rounded-md hover:bg-slate-800 transition">Log
-                                out</button>
+                                class="text-xs sm:text-sm text-slate-400 hover:text-rose-400 px-2.5 py-1.5 rounded-md hover:bg-slate-800 transition cursor-pointer">Log out</button>
                         </form>
                     </div>
                     {% else %}

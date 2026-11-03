@@ -11,4 +11,5 @@ urlpatterns = [
     path('checkout/cancel/', views.order_cancel, name='order_cancel'),
     path('history/', views.order_history, name='order_history'),
     path('webhook/stripe/', views.stripe_webhook, name='stripe_webhook'),
+    path('orders/<int:order_id>/cancel/', views.order_cancel, name='order_cancel'),
 ]

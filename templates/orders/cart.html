@@ -101,47 +101,86 @@
             {% endfor %}
         </div>
 
-        <!-- Coloana Dreaptă: Sumar Comandă -->
+        <!-- Coloana Dreaptă: Sumar Comandă & Checkout Form -->
         <div class="lg:col-span-4">
             <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm sticky top-24 space-y-5">
                 <h2 class="text-base font-bold text-slate-900 uppercase tracking-wider">Order Summary</h2>
 
-                <div class="space-y-3 text-xs text-slate-600 border-b border-slate-100 pb-4">
-                    <div class="flex justify-between">
-                        <span>Items Subtotal</span>
-                        <span id="summary-subtotal" class="font-bold text-slate-800">
-                            {{ total_price }} RON
-                        </span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span>Standard Industrial Logistics</span>
-                        <span class="font-bold text-emerald-600 uppercase">Free</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span>VAT (Included)</span>
-                        <span class="text-slate-400">19%</span>
-                    </div>
-                </div>
+                <form method="POST" action="{% url 'checkout' %}" class="space-y-4">
+                    {% csrf_token %}
 
-                <div class="flex justify-between items-baseline pt-1">
-                    <span class="text-sm font-bold text-slate-900">Total Due</span>
-                    <div class="text-right">
-                        <span id="cart-grand-total" class="text-2xl font-black text-slate-900">
-                            {{ total_price }}
-                        </span>
-                        <span class="text-xs font-bold text-slate-900">RON</span>
-                    </div>
-                </div>
+                    <!-- Selecție Metode de Livrare -->
+                    <div class="space-y-2">
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">Shipping
+                            Method</label>
 
-                <!-- Buton Checkout -->
-                <a href="{% url 'checkout' %}"
-                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl text-center text-sm transition shadow-sm flex items-center justify-center gap-2 cursor-pointer">
-                    Proceed to Checkout
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
-                    </svg>
-                </a>
+                        <label
+                            class="flex items-center justify-between p-3 border border-slate-200 rounded-xl cursor-pointer hover:border-blue-500 transition">
+                            <div class="flex items-center gap-2.5">
+                                <input type="radio" name="shipping_method" value="standard" checked
+                                    class="shipping-radio text-blue-600 focus:ring-blue-500" data-cost="0.00">
+                                <div>
+                                    <p class="text-xs font-semibold text-slate-800">Standard Logistics</p>
+                                    <p class="text-[10px] text-slate-400">3-5 business days</p>
+                                </div>
+                            </div>
+                            <span class="text-xs font-bold text-emerald-600 uppercase">Free</span>
+                        </label>
+
+                        <label
+                            class="flex items-center justify-between p-3 border border-slate-200 rounded-xl cursor-pointer hover:border-blue-500 transition">
+                            <div class="flex items-center gap-2.5">
+                                <input type="radio" name="shipping_method" value="express"
+                                    class="shipping-radio text-blue-600 focus:ring-blue-500" data-cost="49.99">
+                                <div>
+                                    <p class="text-xs font-semibold text-slate-800">Express Courier</p>
+                                    <p class="text-[10px] text-slate-400">Next-day guaranteed delivery</p>
+                                </div>
+                            </div>
+                            <span class="text-xs font-bold text-slate-900">+49.99 RON</span>
+                        </label>
+                    </div>
+
+                    <!-- Detalii Costuri -->
+                    <div class="space-y-3 text-xs text-slate-600 border-t border-b border-slate-100 py-4">
+                        <div class="flex justify-between">
+                            <span>Items Subtotal</span>
+                            <span id="summary-subtotal" class="font-bold text-slate-800"
+                                data-subtotal="{{ total_price }}">
+                                {{ total_price }} RON
+                            </span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Shipping Fee</span>
+                            <span id="summary-shipping" class="font-bold text-emerald-600 uppercase">Free</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>VAT (Included)</span>
+                            <span class="text-slate-400">19%</span>
+                        </div>
+                    </div>
+
+                    <!-- Total de Plată -->
+                    <div class="flex justify-between items-baseline pt-1">
+                        <span class="text-sm font-bold text-slate-900">Total Due</span>
+                        <div class="text-right">
+                            <span id="cart-grand-total" class="text-2xl font-black text-slate-900">
+                                {{ total_price }}
+                            </span>
+                            <span class="text-xs font-bold text-slate-900">RON</span>
+                        </div>
+                    </div>
+
+                    <!-- Buton Checkout Stripe -->
+                    <button type="submit"
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl text-center text-sm transition shadow-sm flex items-center justify-center gap-2 cursor-pointer">
+                        Proceed to Checkout
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                        </svg>
+                    </button>
+                </form>
 
                 <div class="pt-2 text-center">
                     <p class="text-[11px] text-slate-400 flex items-center justify-center gap-1.5">
@@ -179,7 +218,7 @@
 
 </div>
 
-<!-- Script Asincron AJAX / Fetch API -->
+<!-- Script Asincron AJAX / Fetch API + Live Shipping Calculation -->
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         function getCsrfToken() {
@@ -200,7 +239,36 @@
         }
 
         const csrftoken = getCsrfToken();
+        const summarySubtotal = document.getElementById('summary-subtotal');
+        const summaryShipping = document.getElementById('summary-shipping');
+        const grandTotal = document.getElementById('cart-grand-total');
 
+        // Funcție comună pentru recalcularea totalului (Subtotal + Livrare)
+        function recalculateGrandTotal() {
+            if (!summarySubtotal || !grandTotal) return;
+            const currentSubtotal = parseFloat(summarySubtotal.dataset.subtotal) || 0;
+            const selectedShipping = document.querySelector('.shipping-radio:checked');
+            const shippingCost = selectedShipping ? parseFloat(selectedShipping.dataset.cost) : 0;
+
+            if (summaryShipping) {
+                if (shippingCost > 0) {
+                    summaryShipping.textContent = `+${shippingCost.toFixed(2)} RON`;
+                    summaryShipping.className = 'font-bold text-slate-900';
+                } else {
+                    summaryShipping.textContent = 'Free';
+                    summaryShipping.className = 'font-bold text-emerald-600 uppercase';
+                }
+            }
+
+            grandTotal.textContent = (currentSubtotal + shippingCost).toFixed(2);
+        }
+
+        // Ascultător pentru schimbarea metodei de livrare
+        document.querySelectorAll('.shipping-radio').forEach(radio => {
+            radio.addEventListener('change', recalculateGrandTotal);
+        });
+
+        // Controale +/- pentru cantitate
         document.querySelectorAll('.cart-item').forEach(card => {
             const itemId = card.dataset.itemId;
             const maxStock = parseInt(card.dataset.maxStock, 10) || 999;
@@ -251,11 +319,12 @@
                         qtyDisplay.textContent = data.quantity;
                         if (totalPriceEl) totalPriceEl.textContent = data.item_total;
 
-                        const summarySubtotal = document.getElementById('summary-subtotal');
-                        const grandTotal = document.getElementById('cart-grand-total');
+                        if (summarySubtotal) {
+                            summarySubtotal.textContent = `${data.cart_total} RON`;
+                            summarySubtotal.dataset.subtotal = data.cart_total;
+                        }
 
-                        if (summarySubtotal) summarySubtotal.textContent = `${data.cart_total} RON`;
-                        if (grandTotal) grandTotal.textContent = data.cart_total;
+                        recalculateGrandTotal();
                     } else {
                         alert(data.error || 'Could not update item.');
                     }
