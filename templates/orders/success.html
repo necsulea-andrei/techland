@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-16 text-center">
+    <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
+    </div>
+    <h1 class="text-3xl font-extrabold text-slate-900 mb-2">Payment Initialized!</h1>
+    <p class="text-slate-600 mb-6">
+        Thank you for your order <strong>#{{ order.id }}</strong>. Once the Stripe webhook confirms your payment
+        signature, your order status will automatically shift to <strong>Paid</strong>.
+    </p>
+    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-8 text-left max-w-md mx-auto">
+        <div class="flex justify-between py-1 text-sm text-slate-600">
+            <span>Current Status:</span>
+            <span class="font-bold text-blue-600 uppercase">{{ order.status }}</span>
+        </div>
+        <div class="flex justify-between py-1 text-sm text-slate-600">
+            <span>Total Captured:</span>
+            <span class="font-bold text-slate-900">{{ order.total_amount }} RON</span>
+        </div>
+    </div>
+    <a href="{% url 'product_list' %}"
+        class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-xl transition">
+        Return to Catalog
+    </a>
+</div>
+{% endblock %}

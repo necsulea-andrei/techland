@@ -1,0 +1,291 @@
+{% extends 'base.html' %}
+
+{% block title %}Shopping Cart — TechLand Store{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- Header Pagină -->
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Shopping Cart</h1>
+            <p class="text-xs text-slate-500 mt-1">Review your hardware and industrial automation components before
+                checkout.</p>
+        </div>
+        <a href="{% url 'product_list' %}"
+            class="text-xs font-semibold text-blue-600 hover:text-blue-800 transition inline-flex items-center gap-1">
+            &larr; Continue Shopping
+        </a>
+    </div>
+
+    {% if items %}
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+        <!-- Coloana Stângă: Lista de Produse -->
+        <div class="lg:col-span-8 space-y-4">
+            {% for item in items %}
+            <div class="cart-item bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition hover:shadow-md"
+                data-item-id="{{ item.id }}" data-max-stock="{{ item.product.stock }}">
+
+                <!-- Imagine & Detalii Produs -->
+                <div class="flex items-center gap-4">
+                    <div
+                        class="w-20 h-20 rounded-xl bg-slate-50 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center">
+                        {% if item.product.images.first %}
+                        <img src="{{ item.product.images.first.image_url }}" alt="{{ item.product.name }}"
+                            class="w-full h-full object-cover">
+                        {% else %}
+                        <span class="text-slate-400 text-[10px] font-mono">No preview</span>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <span
+                            class="text-[10px] font-bold text-blue-600 uppercase tracking-wider bg-blue-50 px-2 py-0.5 rounded">
+                            {{ item.product.category.name }}
+                        </span>
+                        <h3 class="text-sm font-bold text-slate-900 mt-1 line-clamp-1">
+                            <a href="{% url 'product_detail' item.product.slug %}"
+                                class="hover:text-blue-600 transition">
+                                {{ item.product.name }}
+                            </a>
+                        </h3>
+                        <p class="text-xs text-slate-400 font-mono">SKU: {{ item.product.sku }}</p>
+                        <p class="text-xs text-slate-600 font-medium mt-1">
+                            <span class="unit-price">{{ item.product.price }}</span> RON <span
+                                class="text-slate-400 font-normal">/ unit</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Controale Cantitate & Preț Linie -->
+                <div
+                    class="flex items-center justify-between sm:justify-end gap-6 border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100">
+
+                    <!-- Counter Incrementare / Decrementare -->
+                    <div class="flex items-center border border-slate-200 rounded-xl bg-slate-50 p-1">
+                        <button type="button"
+                            class="btn-decrease w-8 h-8 flex items-center justify-center rounded-lg bg-white text-slate-700 hover:bg-slate-200 text-sm font-bold shadow-sm transition cursor-pointer">
+                            -
+                        </button>
+                        <span class="qty-display w-10 text-center text-xs font-bold text-slate-800">
+                            {{ item.quantity }}
+                        </span>
+                        <button type="button"
+                            class="btn-increase w-8 h-8 flex items-center justify-center rounded-lg bg-white text-slate-700 hover:bg-slate-200 text-sm font-bold shadow-sm transition cursor-pointer">
+                            +
+                        </button>
+                    </div>
+
+                    <!-- Preț Total Produs -->
+                    <div class="w-28 text-right">
+                        <span class="item-total-price text-base font-black text-slate-900">
+                            {% widthratio item.product.price 1 item.quantity %}
+                        </span>
+                        <span class="text-xs font-bold text-slate-900">RON</span>
+                    </div>
+
+                    <!-- Buton Eliminare -->
+                    <form method="POST" action="{% url 'remove_cart_item' item.id %}" class="shrink-0">
+                        {% csrf_token %}
+                        <button type="submit"
+                            class="text-xs font-semibold text-rose-500 hover:text-rose-700 p-1 transition cursor-pointer"
+                            title="Remove item">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Coloana Dreaptă: Sumar Comandă -->
+        <div class="lg:col-span-4">
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm sticky top-24 space-y-5">
+                <h2 class="text-base font-bold text-slate-900 uppercase tracking-wider">Order Summary</h2>
+
+                <div class="space-y-3 text-xs text-slate-600 border-b border-slate-100 pb-4">
+                    <div class="flex justify-between">
+                        <span>Items Subtotal</span>
+                        <span id="summary-subtotal" class="font-bold text-slate-800">
+                            {{ total_price }} RON
+                        </span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Standard Industrial Logistics</span>
+                        <span class="font-bold text-emerald-600 uppercase">Free</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>VAT (Included)</span>
+                        <span class="text-slate-400">19%</span>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-baseline pt-1">
+                    <span class="text-sm font-bold text-slate-900">Total Due</span>
+                    <div class="text-right">
+                        <span id="cart-grand-total" class="text-2xl font-black text-slate-900">
+                            {{ total_price }}
+                        </span>
+                        <span class="text-xs font-bold text-slate-900">RON</span>
+                    </div>
+                </div>
+
+                <!-- Buton Checkout -->
+                <a href="{% url 'checkout' %}"
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl text-center text-sm transition shadow-sm flex items-center justify-center gap-2 cursor-pointer">
+                    Proceed to Checkout
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                    </svg>
+                </a>
+
+                <div class="pt-2 text-center">
+                    <p class="text-[11px] text-slate-400 flex items-center justify-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 text-slate-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        Encrypted SSL Checkout Powered by Stripe
+                    </p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    {% else %}
+    <!-- Coș Gol -->
+    <div class="bg-white rounded-2xl border border-slate-200 p-12 text-center max-w-xl mx-auto my-12 shadow-sm">
+        <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+        </div>
+        <h2 class="text-xl font-bold text-slate-900">Your Cart is Empty</h2>
+        <p class="text-xs text-slate-500 mt-2 mb-6">Looks like you haven't added any CPUs, memory modules, or PLCs yet.
+        </p>
+        <a href="{% url 'product_list' %}"
+            class="inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-5 py-2.5 rounded-xl transition shadow-sm">
+            Browse Tech Catalog
+        </a>
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- Script Asincron AJAX / Fetch API -->
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        function getCsrfToken() {
+            const input = document.querySelector('input[name="csrfmiddlewaretoken"]');
+            if (input) return input.value;
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, 10) === 'csrftoken=') {
+                        cookieValue = decodeURIComponent(cookie.substring(10));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        const csrftoken = getCsrfToken();
+
+        document.querySelectorAll('.cart-item').forEach(card => {
+            const itemId = card.dataset.itemId;
+            const maxStock = parseInt(card.dataset.maxStock, 10) || 999;
+            const qtyDisplay = card.querySelector('.qty-display');
+            const totalPriceEl = card.querySelector('.item-total-price');
+            const btnIncrease = card.querySelector('.btn-increase');
+            const btnDecrease = card.querySelector('.btn-decrease');
+
+            async function updateQuantity(targetQty) {
+                btnIncrease.disabled = true;
+                btnDecrease.disabled = true;
+
+                const formData = new FormData();
+                formData.append('quantity', targetQty);
+
+                let updateUrl = `/cart/update/${itemId}/`;
+
+                try {
+                    let response = await fetch(updateUrl, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrftoken,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: formData
+                    });
+
+                    if (response.status === 404) {
+                        updateUrl = `/orders/cart/update/${itemId}/`;
+                        response = await fetch(updateUrl, {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRFToken': csrftoken,
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            body: formData
+                        });
+                    }
+
+                    if (!response.ok) {
+                        const errData = await response.json().catch(() => ({}));
+                        throw new Error(errData.error || `Server status ${response.status}`);
+                    }
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        qtyDisplay.textContent = data.quantity;
+                        if (totalPriceEl) totalPriceEl.textContent = data.item_total;
+
+                        const summarySubtotal = document.getElementById('summary-subtotal');
+                        const grandTotal = document.getElementById('cart-grand-total');
+
+                        if (summarySubtotal) summarySubtotal.textContent = `${data.cart_total} RON`;
+                        if (grandTotal) grandTotal.textContent = data.cart_total;
+                    } else {
+                        alert(data.error || 'Could not update item.');
+                    }
+                } catch (err) {
+                    console.error('Fetch error:', err);
+                    alert(err.message || 'Network error.');
+                } finally {
+                    btnIncrease.disabled = false;
+                    btnDecrease.disabled = false;
+                }
+            }
+
+            btnIncrease.addEventListener('click', (e) => {
+                e.preventDefault();
+                let current = parseInt(qtyDisplay.textContent.trim(), 10) || 1;
+                if (current < maxStock) {
+                    updateQuantity(current + 1);
+                } else {
+                    alert(`Maximum available stock reached: ${maxStock} units.`);
+                }
+            });
+
+            btnDecrease.addEventListener('click', (e) => {
+                e.preventDefault();
+                let current = parseInt(qtyDisplay.textContent.trim(), 10) || 1;
+                if (current > 1) {
+                    updateQuantity(current - 1);
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

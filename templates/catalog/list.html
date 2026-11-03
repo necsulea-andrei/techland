@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="flex flex-col lg:flex-row gap-8">
+
+        <!-- Sidebar Categorii (Colapsabil pe mobil) -->
+        <aside class="w-full lg:w-64 flex-shrink-0">
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm sticky top-24">
+                <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4">Categories</h2>
+                <nav class="space-y-1">
+                    <a href="{% url 'product_list' %}"
+                        class="block px-3 py-2 text-sm rounded-lg font-medium transition {% if not category %}bg-blue-50 text-blue-600 font-semibold{% else %}text-slate-600 hover:bg-slate-50 hover:text-slate-900{% endif %}">
+                        All Categories
+                    </a>
+                    {% for cat in categories %}
+                    <a href="{% url 'product_list_by_category' cat.slug %}"
+                        class="block px-3 py-2 text-sm rounded-lg font-medium transition {% if category.slug == cat.slug %}bg-blue-50 text-blue-600 font-semibold{% else %}text-slate-600 hover:bg-slate-50 hover:text-slate-900{% endif %}">
+                        {{ cat.name }}
+                    </a>
+                    {% endfor %}
+                </nav>
+            </div>
+        </aside>
+
+        <!-- Product Grid & Pagination Section -->
+        <section class="flex-1">
+            <div class="flex items-center justify-between mb-6">
+                <h1 class="text-2xl font-bold text-slate-900">
+                    {% if category %}{{ category.name }}{% elif query %}Results for "{{ query }}"{% else %}Hardware &
+                    PLC Inventory{% endif %}
+                </h1>
+                <span class="text-xs text-slate-500 font-medium">{{ page_obj.paginator.count }} item(s) found</span>
+            </div>
+
+            <!-- Grilă de Produse (Receptivă de la 360px la ecran lat) -->
+            {% if page_obj %}
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                {% for product in page_obj %}
+                <div
+                    class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between">
+                    <div>
+                        <!-- Imagine Produs -->
+                        <div class="h-48 bg-slate-100 overflow-hidden relative">
+                            {% if product.images.first %}
+                            <img src="{{ product.images.first.image_url }}" alt="{{ product.name }}"
+                                class="w-full h-full object-cover">
+                            {% else %}
+                            <div class="w-full h-full flex items-center justify-center text-slate-400 text-xs">No media
+                                preview</div>
+                            {% endif %}
+
+                            <!-- Badge Stoc Live -->
+                            <div class="absolute top-3 right-3">
+                                {% if product.stock > 0 %}
+                                <span
+                                    class="bg-emerald-50 text-emerald-700 text-xs font-semibold px-2.5 py-1 rounded-full border border-emerald-200">
+                                    {{ product.stock }} in stock
+                                </span>
+                                {% else %}
+                                <span
+                                    class="bg-rose-50 text-rose-700 text-xs font-semibold px-2.5 py-1 rounded-full border border-rose-200">
+                                    Out of stock
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Detalii Produs -->
+                        <div class="p-5">
+                            <span class="text-[11px] font-bold text-blue-600 uppercase tracking-wider">{{ product.category.name }}</span>
+                            <h3 class="text-base font-semibold text-slate-900 mt-1 line-clamp-2">
+                                <a href="{% url 'product_detail' product.slug %}" class="hover:underline">{{ product.name }}</a>
+                            </h3>
+                            <p class="text-xs text-slate-400 mt-1">SKU: {{ product.sku }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Preț și Buton de Coș -->
+                    <div class="p-5 pt-0 flex items-center justify-between border-t border-slate-100 mt-4 pt-4">
+                        <span class="text-xl font-bold text-slate-900">{{ product.price }} <span
+                                class="text-xs font-normal text-slate-500">RON</span></span>
+
+                        {% if product.stock > 0 %}
+                        {% if request.user.is_authenticated %}
+                        <form method="POST" action="{% url 'add_to_cart' product.id %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="quantity" value="1">
+                            <button type="submit"
+                                class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition flex items-center gap-1.5 shadow-sm">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 4v16m8-8H4" />
+                                </svg>
+                                Add
+                            </button>
+                        </form>
+                        {% else %}
+                        <a href="{% url 'login' %}?next={{ request.path }}"
+                            class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-3 py-2 rounded-lg transition">
+                            Login to Add
+                        </a>
+                        {% endif %}
+                        {% else %}
+                        <button disabled
+                            class="bg-slate-100 text-slate-400 text-xs font-semibold px-3.5 py-2 rounded-lg cursor-not-allowed">
+                            Unavailable
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Controale de Paginare (A1) -->
+            {% if page_obj.has_other_pages %}
+            <div class="flex items-center justify-center gap-2 mt-10">
+                {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}"
+                    class="px-3.5 py-2 text-xs font-semibold bg-white border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 transition">
+                    &larr; Previous
+                </a>
+                {% endif %}
+
+                <span class="text-xs text-slate-500 font-medium px-2">
+                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                </span>
+
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}"
+                    class="px-3.5 py-2 text-xs font-semibold bg-white border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 transition">
+                    Next &rarr;
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% else %}
+            <!-- Stare Golicioasă (Empty State - A2) -->
+            <div class="bg-white rounded-xl border border-slate-200 p-12 text-center">
+                <svg class="w-12 h-12 text-slate-300 mx-auto mb-3" fill="none" stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h3 class="text-base font-semibold text-slate-800">No hardware found</h3>
+                <p class="text-xs text-slate-500 mt-1">Try adjusting your keyword or switch to another category.</p>
+                <a href="{% url 'product_list' %}"
+                    class="inline-block mt-4 text-xs font-semibold text-blue-600 hover:underline">Clear all filters</a>
+            </div>
+            {% endif %}
+        </section>
+    </div>
+</div>
+{% endblock %}

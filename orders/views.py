@@ -17,7 +17,9 @@ from accounts.models import Address, UserAddress
 stripe.api_key = getattr(settings, 'STRIPE_SECRET_KEY', '')
 
 
-#1.LOGICA DE COS (A3)
+# =============================================================================
+# 1. LOGICĂ COȘ (CART)
+# =============================================================================
 
 def get_or_create_user_cart(user):
     cart, _ = Cart.objects.get_or_create(user=user)
@@ -27,7 +29,7 @@ def get_or_create_user_cart(user):
 @login_required
 def view_cart(request):
     cart = get_or_create_user_cart(request.user)
-    items = cart.items.select_related('product').all()
+    items = cart.items.select_related('product', 'product__category').all()
     return render(request, 'orders/cart.html', {
         'cart': cart,
         'items': items,
@@ -39,6 +41,7 @@ def view_cart(request):
 @login_required
 def add_to_cart(request, product_id):
     product = get_object_or_404(Product, id=product_id, is_active=True)
+    
     try:
         quantity = int(request.POST.get('quantity', 1))
     except (ValueError, TypeError):
@@ -52,45 +55,58 @@ def add_to_cart(request, product_id):
 
     new_quantity = quantity if created else cart_item.quantity + quantity
 
-    #Validare pe server impotriva depasirii stocului disponibil (A3)
+    # Verificare limită stoc curent
     if new_quantity > product.stock:
-        return JsonResponse({
-            'success': False,
-            'error': f'Stoc insuficient. Doar {product.stock} unități disponibile.'
-        }, status=400)
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'error': f'Stoc insuficient. Doar {product.stock} bucăți disponibile.'
+            }, status=400)
+        return redirect('product_detail', slug=product.slug)
 
     cart_item.quantity = new_quantity
     cart_item.save()
 
-    return JsonResponse({
-        'success': True,
-        'cart_count': sum(item.quantity for item in cart.items.all()),
-        'total_price': float(cart.total_price)
-    })
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return JsonResponse({
+            'success': True,
+            'cart_count': sum(item.quantity for item in cart.items.all()),
+            'total_price': float(cart.total_price)
+        })
+
+    return redirect('view_cart')
 
 
 @require_POST
 @login_required
 def update_cart_item(request, item_id):
-    cart = get_or_create_user_cart(request.user)
-    cart_item = get_object_or_404(CartItem, id=item_id, cart=cart)
+    cart_item = get_object_or_404(CartItem, id=item_id, cart__user=request.user)
     
     try:
-        quantity = int(request.POST.get('quantity', 1))
+        new_qty = int(request.POST.get('quantity', 1))
     except (ValueError, TypeError):
-        quantity = 1
+        return JsonResponse({'success': False, 'error': 'Cantitate invalidă'}, status=400)
 
-    if quantity <= 0:
-        cart_item.delete()
-    elif quantity > cart_item.product.stock:
-        return JsonResponse({'success': False, 'error': 'Depășire stoc'}, status=400)
-    else:
-        cart_item.quantity = quantity
-        cart_item.save()
+    if new_qty < 1:
+        return JsonResponse({'success': False, 'error': 'Cantitatea minimă este 1'}, status=400)
+    
+    if new_qty > cart_item.product.stock:
+        return JsonResponse({
+            'success': False, 
+            'error': f'Stoc maxim disponibil: {cart_item.product.stock}'
+        }, status=400)
+
+    cart_item.quantity = new_qty
+    cart_item.save()
+
+    item_total = cart_item.product.price * cart_item.quantity
+    cart_total = cart_item.cart.total_price
 
     return JsonResponse({
         'success': True,
-        'total_price': float(cart.total_price)
+        'quantity': cart_item.quantity,
+        'item_total': f"{item_total:.2f}",
+        'cart_total': f"{cart_total:.2f}"
     })
 
 
@@ -103,19 +119,19 @@ def remove_cart_item(request, item_id):
     return redirect('view_cart')
 
 
-
-#2.CHECKOUT & STRIPE SESSION (A5, A6)
-
+# =============================================================================
+# 2. CHECKOUT & STRIPE SESSION
+# =============================================================================
 
 @login_required
 def create_checkout_session(request):
     cart = get_or_create_user_cart(request.user)
     items = cart.items.select_related('product').all()
 
-    if not items:
+    if not items.exists():
         return redirect('view_cart')
 
-    #preluam sau atribuim o adresa implicita de livrare
+    # Preluare sau atribuire adresă de livrare
     user_addr = UserAddress.objects.filter(user=request.user, is_default=True).first()
     if not user_addr:
         user_addr = UserAddress.objects.filter(user=request.user).first()
@@ -131,7 +147,7 @@ def create_checkout_session(request):
     else:
         address = user_addr.address
 
-    #cream comanda in starea initiala "New"
+    # Creare comandă în starea inițială "New"
     order = Order.objects.create(
         user=request.user,
         shipping_address=address,
@@ -139,7 +155,8 @@ def create_checkout_session(request):
         total_amount=cart.total_price
     )
 
-    #copiem produsele din cos in order_items
+    # Copiere produse în OrderItem
+    stripe_line_items = []
     for item in items:
         OrderItem.objects.create(
             order=order,
@@ -147,19 +164,13 @@ def create_checkout_session(request):
             quantity=item.quantity,
             unit_price=item.product.price
         )
-
-    #golim cosul utilizatorului
-    items.delete()
-
-    stripe_line_items = []
-    for item in order.items.all():
         stripe_line_items.append({
             'price_data': {
                 'currency': 'ron',
                 'product_data': {
                     'name': item.product.name,
                 },
-                'unit_amount': int(item.unit_price * 100),
+                'unit_amount': int(item.product.price * 100),
             },
             'quantity': item.quantity,
         })
@@ -181,6 +192,11 @@ def create_checkout_session(request):
 def order_success(request):
     order_id = request.GET.get('order_id')
     order = get_object_or_404(Order, id=order_id, user=request.user)
+    
+    # Curățăm coșul doar după ce sesiunea s-a încheiat cu succes
+    cart = get_or_create_user_cart(request.user)
+    cart.items.all().delete()
+    
     return render(request, 'orders/success.html', {'order': order})
 
 
@@ -191,7 +207,15 @@ def order_cancel(request):
     return render(request, 'orders/cancel.html', {'order': order})
 
 
-#3.STRIPE WEBHOOK & TRANZACTIE ATOMICA (A6, A7)
+@login_required
+def order_history(request):
+    orders = Order.objects.filter(user=request.user).prefetch_related('items__product').order_by('-created_at')
+    return render(request, 'orders/history.html', {'orders': orders})
+
+
+# =============================================================================
+# 3. STRIPE WEBHOOK & TRANZACȚIE ATOMICĂ
+# =============================================================================
 
 @csrf_exempt
 def stripe_webhook(request):
@@ -206,21 +230,23 @@ def stripe_webhook(request):
     except (ValueError, stripe.error.SignatureVerificationError):
         return HttpResponse(status=400)
 
-    #evenimentul declansat exclusiv la confirmarea platii
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
         order_id = session.get('client_reference_id')
 
         if order_id:
-            fulfill_order_atomic(order_id, session.get('payment_intent'))
+            try:
+                fulfill_order_atomic(order_id, session.get('payment_intent'))
+            except ValueError as err:
+                return HttpResponse(str(err), status=409)
 
     return HttpResponse(status=200)
 
 
 def fulfill_order_atomic(order_id, payment_intent_id):
     """
-    Previne condițiile de concurență (Race Conditions - A7) prin
-    blocarea rândurilor în tranzacție atomică SQL.[cite: 4, 26]
+    Previne condițiile de concurență (Race Conditions) prin
+    blocarea rândurilor în tranzacție atomică SQL via select_for_update.[cite: 4]
     """
     with transaction.atomic():
         try:
@@ -229,17 +255,17 @@ def fulfill_order_atomic(order_id, payment_intent_id):
             return
 
         if order.status == 'Paid':
-            return  #idempotenta impotriva trimiterilor multiple de la Stripe
+            return  # Idempotență împotriva trimiterilor duplicate de la Stripe
+
+        # Verificare și scădere atomică pentru fiecare produs
+        for item in order.items.select_related('product'):
+            product = Product.objects.select_for_update().get(id=item.product.id)
+            if product.stock >= item.quantity:
+                product.stock = product.stock - item.quantity
+                product.save()
+            else:
+                raise ValueError(f"Stoc epuizat pentru produsul {product.name}")
 
         order.status = 'Paid'
         order.stripe_payment_intent = payment_intent_id
         order.save()
-
-        #scadere atomica de stoc pentru fiecare produs
-        for item in order.items.select_related('product'):
-            product = Product.objects.select_for_update().get(id=item.product.id)
-            if product.stock >= item.quantity:
-                product.stock = F('stock') - item.quantity
-                product.save()
-            else:
-                raise ValueError(f"Stoc epuizat pentru produsul {product.name}")
