@@ -42,16 +42,19 @@ class Product(models.Model):
 
 
 class ProductImage(models.Model):
-    product = models.ForeignKey(
-        Product,
-        on_delete=models.CASCADE,
-        related_name='images'
-    )
-    image_url = models.CharField(max_length=500)
+    product = models.ForeignKey('Product', related_name='images', on_delete=models.CASCADE)
+    image = models.ImageField(upload_to='products/', blank=True, null=True)
+    image_url = models.URLField(max_length=500, blank=True, null=True)
     is_feature = models.BooleanField(default=False)
 
-    class Meta:
-        db_table = 'product_images'
+    @property
+    def display_url(self):
+        if self.image:
+            return self.image.url
+        return self.image_url or ''
+
+    def str(self):
+        return f"Image for {self.product.name}"
 
 
 class Review(models.Model):
