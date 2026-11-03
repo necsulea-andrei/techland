@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block title %}Contact Us | TechLand{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="max-w-3xl mx-auto">
+        
+        <div class="text-center mb-10">
+            <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight sm:text-4xl">Contact & Asistență Tehnică</h1>
+            <p class="mt-2 text-sm text-slate-500">Ai întrebări despre compatibilitatea PC-urilor sau specificațiile PLC-urilor industriale? Suntem aici să te ajutăm.</p>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="mb-6 p-4 rounded-xl text-sm font-semibold {% if message.tags == 'success' %}bg-emerald-50 text-emerald-800 border border-emerald-200{% else %}bg-rose-50 text-rose-800 border border-rose-200{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-10">
+            <form method="POST" action="{% url 'contact' %}" class="space-y-6">
+                {% csrf_token %}
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                        <label for="name" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Nume complet *</label>
+                        <input type="text" id="name" name="name" required class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition" placeholder="Ion Popescu">
+                    </div>
+                    <div>
+                        <label for="email" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Adresă de Email *</label>
+                        <input type="email" id="email" name="email" required class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition" placeholder="ion@exemplu.ro">
+                    </div>
+                </div>
+
+                <div>
+                    <label for="subject" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Subiect</label>
+                    <input type="text" id="subject" name="subject" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition" placeholder="Ex: Întrebare legată de SIMATIC S7-1200">
+                </div>
+
+                <div>
+                    <label for="message" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Mesaj *</label>
+                    <textarea id="message" name="message" rows="5" required class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition" placeholder="Scrie detaliile solicitării tale aici..."></textarea>
+                </div>
+
+                <button type="submit" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-xl shadow-md transition cursor-pointer">
+                    Trimite Mesajul
+                </button>
+            </form>
+        </div>
+
+        <!-- Casete Suport Rapid -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-12 text-center">
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                <span class="text-blue-600 font-bold block mb-1">Locație Hub</span>
+                <span class="text-xs text-slate-500">Craiova, Dolj, România</span>
+            </div>
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                <span class="text-blue-600 font-bold block mb-1">Email Tehnic</span>
+                <span class="text-xs text-slate-500">support@techland.local</span>
+            </div>
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                <span class="text-blue-600 font-bold block mb-1">Program Suport</span>
+                <span class="text-xs text-slate-500">Luni - Vineri: 09:00 - 18:00</span>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

@@ -31,6 +31,7 @@ class Product(models.Model):
         validators=[MinValueValidator(0.01)]
     )
     stock = models.IntegerField(default=0, validators=[MinValueValidator(0)])
+    description = models.TextField(blank=True, default='')
     is_active = models.BooleanField(default=True)
 
     class Meta:

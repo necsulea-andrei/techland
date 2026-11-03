@@ -44,7 +44,7 @@
 
                 <!-- Global Search Input (A2 Requirement) -->
                 <div class="flex-1 max-w-lg hidden md:block">
-                    <form method="GET" action="/" class="relative">
+                    <form method="GET" action="{% url 'product_list' %}" class="relative">
                         <input type="text" name="q" value="{{ request.GET.q|default:'' }}"
                             placeholder="Search processors, SSDs, PLCs, power modules..."
                             class="w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg pl-4 pr-10 py-2 focus:outline-none focus:ring-2 focus:ring-brand-600 placeholder-slate-400">
@@ -60,6 +60,9 @@
 
                 <!-- Navigation Links / User Authentication Status (A4) -->
                 <div class="flex items-center gap-4 text-sm font-medium">
+                    <a href="{% url 'contact' %}"
+                        class="text-xs sm:text-sm font-medium text-slate-300 hover:text-white px-2 py-1.5 transition">Contact</a>
+
                     {% if user.is_authenticated %}
                     <div class="flex items-center gap-3">
                         <span class="text-slate-300 hidden sm:inline">Signed in as <strong class="text-white">
@@ -86,7 +89,7 @@
 
             <!-- Mobile Search Bar (Viewports < 768px down to 360px) -->
             <div class="pb-3 md:hidden">
-                <form method="GET" action="/" class="relative">
+                <form method="GET" action="{% url 'product_list' %}" class="relative">
                     <input type="text" name="q" value="{{ request.GET.q|default:'' }}"
                         placeholder="Search hardware or PLCs..."
                         class="w-full bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg pl-3 pr-10 py-2 focus:ring-2 focus:ring-brand-600">
@@ -124,9 +127,10 @@
         <div
             class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
             <p>© 2026 TechLand Store. PC Hardware & Industrial Automation Systems.</p>
-            <div class="flex gap-6">
+            <div class="flex gap-6 items-center">
                 <span>E-Commerce Academic Project</span>
                 <span>Team: Andrei & Alexandru</span>
+                <a href="{% url 'contact' %}" class="hover:text-white transition">Contact & Suport</a>
             </div>
         </div>
     </footer>
