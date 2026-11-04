@@ -11,17 +11,20 @@ admin.site.index_title = "Inventory & Order Management Dashboard"
 class ProductImageInline(admin.TabularInline):
     model = ProductImage
     extra = 1
-    fields = ('image_url', 'is_feature', 'image_preview')
+    fields = ('source_type', 'image', 'image_url', 'image_preview', 'alt_text')
     readonly_fields = ('image_preview',)
 
     def image_preview(self, obj):
-        if obj.image_url:
+        url = obj.display_url if obj else None
+        if url:
             return format_html(
-                '<img src="{}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;" />',
-                obj.image_url
+                '<a href="{0}" target="_blank">'
+                '<img src="{0}" style="width: 48px; height: 48px; object-fit: cover; border-radius: 6px; border: 1px solid #475569;" onerror="this.style.display=\'none\'" />'
+                '</a>',
+                url
             )
-        return "-"
-    image_preview.short_description = "Preview"
+        return "—"
+    image_preview.short_description = "Image Preview"
 
 
 @admin.register(Category)
@@ -59,18 +62,22 @@ class ProductAdmin(admin.ModelAdmin):
 
 @admin.register(ProductImage)
 class ProductImageAdmin(admin.ModelAdmin):
-    list_display = ('id', 'product', 'image_preview', 'image_url', 'is_feature')
-    list_filter = ('is_feature',)
+    list_display = ('id', 'product', 'source_type', 'image_preview', 'image', 'image_url')
+    list_editable = ('source_type',)
+    list_filter = ('source_type',)
     search_fields = ('product__name', 'image_url')
+    fields = ('product', 'source_type', 'image', 'image_url', 'alt_text', 'image_preview')
+    readonly_fields = ('image_preview',)
 
     def image_preview(self, obj):
-        if obj.image_url:
+        url = obj.display_url
+        if url:
             return format_html(
-                '<img src="{}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;" />',
-                obj.image_url
+                '<img src="{}" style="width: 45px; height: 45px; object-fit: cover; border-radius: 6px; border: 1px solid #cbd5e1;" />',
+                url
             )
         return "-"
-    image_preview.short_description = "Preview"
+    image_preview.short_description = "Active preview"
 
 
 @admin.register(Review)

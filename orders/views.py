@@ -132,7 +132,6 @@ def create_checkout_session(request):
     if not items.exists():
         return redirect('view_cart')
 
-    # Alegere metodă livrare (standard / express)
     shipping_method = request.POST.get('shipping_method', 'standard')
     shipping_cost = Decimal('49.99') if shipping_method == 'express' else Decimal('0.00')
 
@@ -141,36 +140,35 @@ def create_checkout_session(request):
         user_addr = UserAddress.objects.filter(user=request.user).first()
     
     address = user_addr.address if user_addr else None
-
-    # Creare comandă cu cost livrare
     total_with_shipping = cart.total_price + shipping_cost
-    order = Order.objects.create(
-        user=request.user,
-        shipping_address=address,
-        shipping_method=shipping_method,
-        shipping_cost=shipping_cost,
-        status='New',
-        total_amount=total_with_shipping
-    )
 
-    stripe_line_items = []
-    for item in items:
-        OrderItem.objects.create(
-            order=order,
-            product=item.product,
-            quantity=item.quantity,
-            unit_price=item.product.price
+    with transaction.atomic():
+        order = Order.objects.create(
+            user=request.user,
+            shipping_address=address,
+            shipping_method=shipping_method,
+            shipping_cost=shipping_cost,
+            status='New',
+            total_amount=total_with_shipping
         )
-        stripe_line_items.append({
-            'price_data': {
-                'currency': 'ron',
-                'product_data': {'name': item.product.name},
-                'unit_amount': int(item.product.price * 100),
-            },
-            'quantity': item.quantity,
-        })
 
-    # Adăugare linie Stripe pentru transport dacă este express
+        stripe_line_items = []
+        for item in items:
+            OrderItem.objects.create(
+                order=order,
+                product=item.product,
+                quantity=item.quantity,
+                unit_price=item.product.price
+            )
+            stripe_line_items.append({
+                'price_data': {
+                    'currency': 'ron',
+                    'product_data': {'name': item.product.name},
+                    'unit_amount': int(item.product.price * 100),
+                },
+                'quantity': item.quantity,
+            })
+
     if shipping_cost > 0:
         stripe_line_items.append({
             'price_data': {
@@ -186,6 +184,7 @@ def create_checkout_session(request):
         line_items=stripe_line_items,
         mode='payment',
         client_reference_id=str(order.id),
+        metadata={'order_id': order.id},
         success_url=domain_url + reverse('order_success') + f'?order_id={order.id}',
         cancel_url=domain_url + reverse('order_cancel') + f'?order_id={order.id}',
     )
@@ -197,26 +196,39 @@ def create_checkout_session(request):
 def order_success(request):
     order_id = request.GET.get('order_id')
     order = get_object_or_404(Order, id=order_id, user=request.user)
-    
-    # Curățăm coșul doar după ce sesiunea s-a încheiat cu succes
+
+    # Scădere stoc și marcare comandă ca Paid
+    with transaction.atomic():
+        order_locked = Order.objects.select_for_update().get(id=order.id)
+        
+        # Rulăm scăderea de stoc doar dacă nu a fost deja marcată ca Paid de webhook
+        if order_locked.status != 'Paid':
+            order_locked.status = 'Paid'
+            order_locked.save(update_fields=['status'])
+
+            for item in order_locked.items.select_related('product'):
+                prod = Product.objects.select_for_update().get(id=item.product.id)
+                prod.stock = max(0, prod.stock - item.quantity)
+                prod.save(update_fields=['stock'])
+
+    # Curățăm coșul utilizatorului
     cart = get_or_create_user_cart(request.user)
     cart.items.all().delete()
-    
-    return render(request, 'orders/success.html', {'order': order})
+
+    return render(request, 'orders/success.html', {'order': order_locked})
 
 
 @require_POST
 @login_required
 def order_cancel(request, order_id):
-    """Permite utilizatorului să anuleze comanda doar dacă nu a fost expediată și returnează stocul."""
     order = get_object_or_404(Order, id=order_id, user=request.user)
 
-    if order.status not in ['New', 'Paid']:
-        messages.error(request, "Această comandă a fost deja expediată sau procesată și nu mai poate fi anulată direct.")
+    if order.status in ['Shipped', 'Delivered', 'Canceled']:
+        messages.error(request, f"Order #{order.id} cannot be cancelled.")
         return redirect('profile')
 
     with transaction.atomic():
-        # Dacă era plătită (adică stocul fusese deja scăzut), restaurăm stocul atomic
+        # Dacă era plătită, returnăm produsele în stoc
         if order.status == 'Paid':
             for item in order.items.select_related('product'):
                 prod = Product.objects.select_for_update().get(id=item.product.id)
@@ -226,7 +238,7 @@ def order_cancel(request, order_id):
         order.status = 'Canceled'
         order.save()
 
-    messages.success(request, f"Comanda #{order.id} a fost anulată cu succes, iar stocul a fost actualizat.")
+    messages.success(request, f"Order #{order.id} has been succesfully canceled and the stock has been updated.")
     return redirect('profile')
 
 @login_required
@@ -243,24 +255,41 @@ def order_history(request):
 def stripe_webhook(request):
     payload = request.body
     sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
-    webhook_secret = getattr(settings, 'STRIPE_WEBHOOK_SECRET', '')
+    endpoint_secret = settings.STRIPE_WEBHOOK_SECRET
 
     try:
         event = stripe.Webhook.construct_event(
-            payload, sig_header, webhook_secret
+            payload, sig_header, endpoint_secret
         )
     except (ValueError, stripe.error.SignatureVerificationError):
         return HttpResponse(status=400)
 
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
-        order_id = session.get('client_reference_id')
+        order_id = session.get('client_reference_id') or session.get('metadata', {}).get('order_id')
 
         if order_id:
             try:
-                fulfill_order_atomic(order_id, session.get('payment_intent'))
-            except ValueError as err:
-                return HttpResponse(str(err), status=409)
+                with transaction.atomic():
+                    order = Order.objects.select_for_update().get(id=order_id)
+                    
+                    # Verificăm să nu procesăm de două ori același eveniment
+                    if order.status != 'Paid':
+                        order.status = 'Paid'
+                        order.stripe_payment_intent = session.get('payment_intent', '')
+                        order.save()
+
+                        # Scădere stoc pentru fiecare produs comandat
+                        for item in order.items.select_related('product'):
+                            product = Product.objects.select_for_update().get(id=item.product.id)
+                            product.stock = max(0, product.stock - item.quantity)
+                            product.save()
+
+                        # Golire coș pentru utilizator
+                        Cart.objects.filter(user=order.user).delete()
+
+            except Order.DoesNotExist:
+                return HttpResponse(status=404)
 
     return HttpResponse(status=200)
 

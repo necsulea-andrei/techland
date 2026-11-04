@@ -66,19 +66,19 @@ class OrderAdmin(admin.ModelAdmin):
                         prod.save()
         super().save_model(request, obj, form, change)
 
-    @admin.action(description="Setează status: Paid")
+    @admin.action(description="Set status: Paid")
     def mark_as_paid(self, request, queryset):
         queryset.update(status='Paid')
 
-    @admin.action(description="Setează status: Shipped")
+    @admin.action(description="Set status: Shipped")
     def mark_as_shipped(self, request, queryset):
         queryset.update(status='Shipped')
 
-    @admin.action(description="Setează status: Delivered")
+    @admin.action(description="Set status: Delivered")
     def mark_as_delivered(self, request, queryset):
         queryset.update(status='Delivered')
 
-    @admin.action(description="Setează status: Canceled (și reface stocul)")
+    @admin.action(description="Set status: Canceled (și reface stocul)")
     def mark_as_canceled(self, request, queryset):
         with transaction.atomic():
             for order in queryset.select_related():
