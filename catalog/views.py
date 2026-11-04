@@ -6,6 +6,7 @@ from django.shortcuts import redirect
 from django.contrib import messages
 from django.core.mail import send_mail
 from django.conf import settings
+from decimal import Decimal, InvalidOperation
 
 
 def product_list(request, category_slug=None):
@@ -13,18 +14,55 @@ def product_list(request, category_slug=None):
     categories = Category.objects.all()
     products = Product.objects.filter(is_active=True)
 
-    query = request.GET.get('q')
+    # 1. Filtrare după categorie
+    if category_slug:
+        category = get_object_or_404(Category, slug=category_slug)
+        products = products.filter(category=category)
+
+    # 2. Căutare text (nume sau SKU)
+    query = request.GET.get('q', '').strip()
     if query:
         products = products.filter(
             Q(name__icontains=query) |
             Q(sku__icontains=query)
         )
 
-    if category_slug:
-        category = get_object_or_404(Category, slug=category_slug)
-        products = products.filter(category=category)
+    # 3. Filtrare după Price Range (min_price, max_price)
+    min_price = request.GET.get('min_price', '').strip()
+    max_price = request.GET.get('max_price', '').strip()
 
-    # Paginare server-side la 12 produse/pagină (A1)
+    if min_price:
+        try:
+            products = products.filter(price__gte=Decimal(min_price))
+        except (InvalidOperation, ValueError):
+            pass
+
+    if max_price:
+        try:
+            products = products.filter(price__lte=Decimal(max_price))
+        except (InvalidOperation, ValueError):
+            pass
+
+    # 4. Filtrare după Disponibilitate (stock)
+    # stock_status: 'in_stock' (disponibil), 'out_of_stock' (indisponibil)
+    stock_status = request.GET.get('stock', '').strip()
+    if stock_status == 'in_stock':
+        products = products.filter(stock__gt=0)
+    elif stock_status == 'out_of_stock':
+        products = products.filter(stock=0)
+
+    # 5. Sortare
+    sort_by = request.GET.get('sort', '-id')
+    sort_mapping = {
+        'price_asc': 'price',
+        'price_desc': '-price',
+        'date_new': '-id',
+        'date_old': 'id',
+    }
+    order_field = sort_mapping.get(sort_by, '-id')
+    products = products.order_by(order_field)
+
+    # 6. Paginare la 12 produse
     paginator = Paginator(products, 12)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
@@ -34,6 +72,10 @@ def product_list(request, category_slug=None):
         'categories': categories,
         'page_obj': page_obj,
         'query': query,
+        'min_price': min_price,
+        'max_price': max_price,
+        'stock_status': stock_status,
+        'sort_by': sort_by,
     })
 
 
