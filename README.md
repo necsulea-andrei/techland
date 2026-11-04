@@ -47,6 +47,11 @@ cp .env.example .env && docker compose up -d
 # 3. Create and activate virtual environment
 python3 -m venv venv && source venv/bin/activate
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+
+python -m venv .venv --without-pip
+py -3.13 -m venv .venv --without-pip
+
 .\.venv\Scripts\activate
 
 # 4. Install dependencies
