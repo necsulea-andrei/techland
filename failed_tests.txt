@@ -1,0 +1,172 @@
+platform win32 -- Python 3.13.5, pytest-9.2.0, pluggy-1.7.0 -- c:\Users\Andrei Necsulea\Desktop\facultate\ec\techland\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+django: version: 5.2.19, settings: config.settings (from ini)
+rootdir: C:\Users\Andrei Necsulea\Desktop\facultate\ec\techland
+configfile: pytest.ini
+testpaths: tests
+plugins: django-4.14.0
+collected 12 items                                                                                                                                                              
+
+tests/test_cart_calculations.py::TestCartOrderCalculation::test_multiple_item_additions_subtotal PASSED                                                                   [  8%]
+tests/test_cart_calculations.py::TestCartOrderCalculation::test_zero_quantity_clamping FAILED                                                                             [ 16%]
+tests/test_cart_calculations.py::TestCartOrderCalculation::test_decimal_rounding_with_fixed_and_percent_coupons FAILED                                                    [ 25%]
+tests/test_cart_calculations.py::TestCartOrderCalculation::test_shipping_tier_adjustments PASSED                                                                          [ 33%]
+tests/test_webhook_security.py::TestWebhookSecurityAndSignals::test_valid_cryptographic_signature_marks_order_paid PASSED                                                 [ 41%]
+tests/test_webhook_security.py::TestWebhookSecurityAndSignals::test_invalid_signature_rejection PASSED                                                                    [ 50%] 
+tests/test_webhook_security.py::TestWebhookSecurityAndSignals::test_payload_tampering_rejection PASSED                                                                    [ 58%]
+tests/test_webhook_security.py::TestWebhookSecurityAndSignals::test_order_confirmation_mail_dispatched_via_mailtrap PASSED                                                [ 66%]
+tests/test_stock_concurrency.py::TestConcurrencyAndStockLocking::test_simultaneous_checkout_zero_overselling PASSED                                                       [ 75%]
+tests/test_stock_concurrency.py::TestConcurrencyAndStockLocking::test_stock_deduction_atomicity_on_order_completion PASSED                                                [ 83%]
+tests/test_stock_concurrency.py::TestConcurrencyAndStockLocking::test_coupon_atomic_usage_cap_enforcement PASSED                                                          [ 91%]
+tests/test_stock_concurrency.py::TestConcurrencyAndStockLocking::test_rollback_on_payment_failure_preserves_stock PASSED                                                  [100%]
+
+=================================================================================== FAILURES =================================================================================== 
+_____________________________________________________________ TestCartOrderCalculation.test_zero_quantity_clamping _____________________________________________________________ 
+
+self = <tests.test_cart_calculations.TestCartOrderCalculation object at 0x000001DD4095DE50>, client = <django.test.client.Client object at 0x000001DD421DAC10>
+test_user = <User: unit_tester>, product_s7 = <Product: Siemens SIMATIC S7-1200 (SKU: PLC-SIEM-S712)>
+
+    def test_zero_quantity_clamping(self, client, test_user, product_s7):
+        """2. Zero-quantity clamping: prevents negative or zero quantity values."""
+        client.force_login(test_user)
+        cart = Cart.objects.create(user=test_user)
+        item = CartItem.objects.create(cart=cart, product=product_s7, quantity=1)
+
+        response = client.post(
+>           reverse("update_cart_quantity", args=[item.id]),
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            data={"quantity": 0},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+
+tests\test_cart_calculations.py:35:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _  
+.venv\Lib\site-packages\django\urls\base.py:98: in reverse
+    resolved_url = resolver._reverse_with_prefix(view, prefix, *args, **kwargs)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _  
+
+self = <URLResolver 'config.urls' (None:None) '^/'>, lookup_view = 'update_cart_quantity', _prefix = '/', args = (3,), kwargs = {}
+
+    def _reverse_with_prefix(self, lookup_view, _prefix, *args, **kwargs):
+        if args and kwargs:
+            raise ValueError("Don't mix *args and **kwargs in call to reverse()!")
+
+        if not self._populated:
+            self._populate()
+
+        possibilities = self.reverse_dict.getlist(lookup_view)
+
+        for possibility, pattern, defaults, converters in possibilities:
+            for result, params in possibility:
+                if args:
+                    if len(args) != len(params):
+                        continue
+                    candidate_subs = dict(zip(params, args))
+                else:
+                    if set(kwargs).symmetric_difference(params).difference(defaults):
+                        continue
+                    matches = True
+                    for k, v in defaults.items():
+                        if k in params:
+                            continue
+                        if kwargs.get(k, v) != v:
+                            matches = False
+                            break
+                    if not matches:
+                        continue
+                    candidate_subs = kwargs
+                # Convert the candidate subs to text using Converter.to_url().
+                text_candidate_subs = {}
+                match = True
+                for k, v in candidate_subs.items():
+                    if k in converters:
+                        try:
+                            text_candidate_subs[k] = converters[k].to_url(v)
+                        except ValueError:
+                            match = False
+                            break
+                    else:
+                        text_candidate_subs[k] = str(v)
+                if not match:
+                    continue
+                # WSGI provides decoded URLs, without %xx escapes, and the URL
+                # resolver operates on such URLs. First substitute arguments
+                # without quoting to build a decoded URL and look for a match.
+                # Then, if we have a match, redo the substitution with quoted
+                # arguments in order to return a properly encoded URL.
+                candidate_pat = _prefix.replace("%", "%%") + result
+                if re.search(
+                    "^%s%s" % (re.escape(_prefix), pattern),
+                    candidate_pat % text_candidate_subs,
+                ):
+                    # safe characters from `pchar` definition of RFC 3986
+                    url = quote(
+                        candidate_pat % text_candidate_subs,
+                        safe=RFC3986_SUBDELIMS + "/~:@",
+                    )
+                    # Don't allow construction of scheme relative urls.
+                    return escape_leading_slashes(url)
+        # lookup_view can be URL name or callable, but callables are not
+        # friendly in error messages.
+        m = getattr(lookup_view, "__module__", None)
+        n = getattr(lookup_view, "__name__", None)
+        if m is not None and n is not None:
+            lookup_view_s = "%s.%s" % (m, n)
+        else:
+            lookup_view_s = lookup_view
+
+        patterns = [pattern for (_, pattern, _, _) in possibilities]
+        if patterns:
+            if args:
+                arg_msg = "arguments '%s'" % (args,)
+            elif kwargs:
+                arg_msg = "keyword arguments '%s'" % kwargs
+            else:
+                arg_msg = "no arguments"
+            msg = "Reverse for '%s' with %s not found. %d pattern(s) tried: %s" % (
+                lookup_view_s,
+                arg_msg,
+                len(patterns),
+                patterns,
+            )
+        else:
+            msg = (
+                "Reverse for '%(view)s' not found. '%(view)s' is not "
+                "a valid view function or pattern name." % {"view": lookup_view_s}
+            )
+>       raise NoReverseMatch(msg)
+E       django.urls.exceptions.NoReverseMatch: Reverse for 'update_cart_quantity' not found. 'update_cart_quantity' is not a valid view function or pattern name.
+
+.venv\Lib\site-packages\django\urls\resolvers.py:831: NoReverseMatch
+________________________________________________ TestCartOrderCalculation.test_decimal_rounding_with_fixed_and_percent_coupons _________________________________________________ 
+
+self = <tests.test_cart_calculations.TestCartOrderCalculation object at 0x000001DD40945CD0>
+
+    def test_decimal_rounding_with_fixed_and_percent_coupons(self):
+        """3. Decimal precision and rounding verification with percentage and fixed coupons."""
+        subtotal = Decimal("1650.00")
+
+        percent_coupon = Coupon(
+            code="PERCENT33",
+            discount_type="percentage",
+            discount_value=Decimal("33.33"),
+            valid_to="2030-01-01 00:00:00Z"
+        )
+        discount_pct = percent_coupon.calculate_discount(subtotal)
+        # 1650.00 * 0.3333 = 549.945 -> cuantizat la 549.95
+>       assert discount_pct == Decimal("549.95")
+E       AssertionError: assert Decimal('549.94') == Decimal('549.95')
+E        +  where Decimal('549.95') = Decimal('549.95')
+
+tests\test_cart_calculations.py:54: AssertionError
+=========================================================================== short test summary info ============================================================================ 
+FAILED tests/test_cart_calculations.py::TestCartOrderCalculation::test_zero_quantity_clamping - django.urls.exceptions.NoReverseMatch: Reverse for 'update_cart_quantity' not found. 'update_cart_quantity' is not a valid view function or pattern name.
+FAILED tests/test_cart_calculations.py::TestCartOrderCalculation::test_decimal_rounding_with_fixed_and_percent_coupons - AssertionError: assert Decimal('549.94') == Decimal('549.95')
+========================================================================= 2 failed, 10 passed in 6.21s 
+
+
+
+NoReverseMatch: update_cart_quantity: Numele rutei URL din fișierele tale urls.py diferă (sau clamping-ul se testează direct la nivel de model/metodă CartItem).
+
+ROUND_HALF_UP vs trunchiere la rotunjire Decimal: Calculul 1650.00 * Decimal('33.33') / 100 dă 549.945. Python folosește implicit ROUND_HALF_EVEN (banchers rounding), rotunjind 4.5 spre numărul par cel mai apropiat (4 -> 549.94), în timp ce cerința comercială sau metoda ta a produs 549.94.========================================================================= 

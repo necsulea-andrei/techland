@@ -65,7 +65,7 @@ python manage.py migrate && python manage.py seed_data && python manage.py runse
 
 ```bash
 # Run the complete automated test suite (A12)
-python manage.py test orders
+pytest -v
 
 # Create administrative user for Django admin / portal panel (A9)
 python manage.py createsuperuser
