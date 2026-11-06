@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator, ValidationError
+from django.db.models import Avg
 
 
 class Category(models.Model):
@@ -33,6 +34,17 @@ class Product(models.Model):
     stock = models.IntegerField(default=0, validators=[MinValueValidator(0)])
     description = models.TextField(blank=True, default='')
     is_active = models.BooleanField(default=True)
+
+    @property
+    def average_rating(self):
+        """Returnează media review-urilor vizibile (rotunjită la 1 zecimală) sau 0."""
+        avg = self.reviews.filter(is_visible=True).aggregate(Avg('rating'))['rating__avg']
+        return round(avg, 1) if avg else 0
+
+    @property
+    def reviews_count(self):
+        """Numărul total de recenzii vizibile."""
+        return self.reviews.filter(is_visible=True).count()
 
     class Meta:
         db_table = 'products'
@@ -101,22 +113,53 @@ class ProductImage(models.Model):
 
 
 class Review(models.Model):
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name='reviews'
-    )
     product = models.ForeignKey(
-        Product,
-        on_delete=models.CASCADE,
+        'Product', 
+        on_delete=models.CASCADE, 
         related_name='reviews'
     )
-    rating = models.IntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(5)]
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE, 
+        related_name='reviews'
     )
-    comment = models.TextField()
+    rating = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        help_text="Rating between 1 and 5"
+    )
+    comment = models.TextField(blank=True)
+    is_visible = models.BooleanField(
+        default=True, 
+        verbose_name="Publicly visible",
+        help_text="Uncheck to hide the review from the store without deleting it."
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'reviews'
-        unique_together = ('user', 'product')
+        ordering = ['-created_at']
+        # Un utilizator poate lăsa un singur review per produs
+        unique_together = ('product', 'user')
+
+    def __str__(self):
+        return f"{self.user.username} - {self.product.name} ({self.rating}★)"
+
+
+class WishlistItem(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='wishlist_items'
+    )
+    product = models.ForeignKey(
+        'Product',
+        on_delete=models.CASCADE,
+        related_name='wishlisted_by'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = ('user', 'product')  # Previne dublarea aceluiași produs în wishlist
+
+    def __str__(self):
+        return f"{self.user.username} - {self.product.name}"

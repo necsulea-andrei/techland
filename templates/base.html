@@ -33,10 +33,15 @@
             <div class="flex items-center justify-between h-16 gap-4">
 
                 <!-- Logo & Brand -->
-                <div class="flex items-center gap-3 shrink-0">
-                    <a href="/" class="flex items-center gap-2">
+                <div class="flex items-center gap-6 shrink-0">
+                    <a href="{% url 'home' %}" class="flex items-center gap-2">
                         <span class="p-2 bg-brand-600 rounded-lg text-white font-black tracking-widest text-lg">TL</span>
                         <span class="text-xl font-bold tracking-tight text-white">Tech<span class="text-blue-500">Land</span></span>
+                    </a>
+
+                    <!-- Desktop Nav Link to Catalog -->
+                    <a href="{% url 'product_list' %}" class="hidden sm:inline-block text-xs sm:text-sm font-medium text-slate-300 hover:text-white px-2 py-1.5 transition">
+                        Catalog
                     </a>
                 </div>
 
@@ -57,9 +62,20 @@
                 </div>
 
                 <!-- Navigation Links / User Authentication Status (A4) -->
-                <div class="flex items-center gap-4 text-sm font-medium">
+                <div class="flex items-center gap-3 sm:gap-4 text-sm font-medium">
                     <a href="{% url 'contact' %}"
                         class="text-xs sm:text-sm font-medium text-slate-300 hover:text-white px-2 py-1.5 transition">Contact</a>
+
+                    <!-- Wishlist Button -->
+                    {% if user.is_authenticated %}
+                    <a href="{% url 'wishlist_view' %}"
+                        class="relative inline-flex items-center p-2 text-slate-300 hover:text-rose-400 transition" title="Wishlist">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                        </svg>
+                    </a>
+                    {% endif %}
 
                     <!-- Shopping Cart Button with Dynamic Badge -->
                     <a href="{% url 'view_cart' %}"
@@ -78,7 +94,7 @@
                     </a>
 
                     {% if user.is_authenticated %}
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-2 sm:gap-3">
                         <!-- Profile Link with Icon -->
                         <a href="{% url 'profile' %}"
                             class="flex items-center gap-1.5 text-slate-300 hover:text-white px-2 py-1.5 rounded-lg hover:bg-slate-800/60 transition group"
@@ -89,22 +105,25 @@
                             <span class="text-xs sm:text-sm font-semibold text-white">{{ user.username }}</span>
                         </a>
 
+                        <!-- Admin Panel Link (Staff Only) -->
                         {% if user.is_staff %}
                         <a href="/admin/"
-                            class="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-1 rounded hover:bg-amber-500/20">Admin</a>
+                            class="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-1 rounded hover:bg-amber-500/20 font-semibold transition"
+                            title="Django Administration">Admin</a>
                         {% endif %}
 
+                        <!-- Logout Button -->
                         <form method="POST" action="{% url 'logout' %}" class="inline">
                             {% csrf_token %}
                             <button type="submit"
-                                class="text-xs sm:text-sm text-slate-400 hover:text-rose-400 px-2.5 py-1.5 rounded-md hover:bg-slate-800 transition cursor-pointer">Log out</button>
+                                class="text-xs sm:text-sm text-slate-400 hover:text-rose-400 px-2.5 py-1.5 rounded-md hover:bg-slate-800 transition cursor-pointer">Sign out</button>
                         </form>
                     </div>
                     {% else %}
                     <a href="{% url 'login' %}"
-                        class="text-slate-300 hover:text-white px-3 py-1.5 rounded-md transition">Sign in</a>
+                        class="text-slate-300 hover:text-white px-3 py-1.5 rounded-md transition text-xs sm:text-sm">Sign in</a>
                     <a href="{% url 'register' %}"
-                        class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition">Register</a>
+                        class="bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-2 rounded-lg font-semibold shadow-sm transition text-xs sm:text-sm">Register</a>
                     {% endif %}
                 </div>
             </div>
@@ -146,13 +165,15 @@
 
     <!-- Footer -->
     <footer class="bg-slate-900 border-t border-slate-800 text-slate-400 text-xs py-8 mt-auto">
-        <div
-            class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
             <p>© 2026 TechLand Store. PC Hardware & Industrial Automation Systems.</p>
             <div class="flex gap-6 items-center">
                 <span>E-Commerce Academic Project</span>
                 <span>Team: Andrei & Alexandru</span>
-                <a href="{% url 'contact' %}" class="hover:text-white transition">Contact & Suport</a>
+                <a href="{% url 'contact' %}" class="hover:text-white transition">Contact & Support</a>
+                {% if user.is_staff %}
+                <a href="/admin/" class="text-amber-400 hover:underline">Admin</a>
+                {% endif %}
             </div>
         </div>
     </footer>

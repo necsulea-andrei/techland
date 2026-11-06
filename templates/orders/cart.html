@@ -9,8 +9,7 @@
     <div class="flex items-center justify-between mb-8">
         <div>
             <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Shopping Cart</h1>
-            <p class="text-xs text-slate-500 mt-1">Review your hardware and industrial automation components before
-                checkout.</p>
+            <p class="text-xs text-slate-500 mt-1">Review your hardware and industrial automation components before checkout.</p>
         </div>
         <a href="{% url 'product_list' %}"
             class="text-xs font-semibold text-blue-600 hover:text-blue-800 transition inline-flex items-center gap-1">
@@ -29,37 +28,32 @@
 
                 <!-- Imagine & Detalii Produs -->
                 <div class="flex items-center gap-4">
-                    <div
-                        class="w-20 h-20 rounded-xl bg-slate-50 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center">
-                        {% if item.product.images.first %}
-                        <img src="{{ item.product.images.first.image_url }}" alt="{{ item.product.name }}"
-                            class="w-full h-full object-cover">
+                    <div class="w-20 h-20 rounded-xl bg-slate-50 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center">
+                        {% if item.product.images.first and item.product.images.first.display_url %}
+                            <img src="{{ item.product.images.first.display_url }}" alt="{{ item.product.name }}" class="w-full h-full object-cover">
                         {% else %}
-                        <span class="text-slate-400 text-[10px] font-mono">No preview</span>
+                            <span class="text-slate-400 text-[10px] font-mono">No preview</span>
                         {% endif %}
                     </div>
                     <div>
-                        <span
-                            class="text-[10px] font-bold text-blue-600 uppercase tracking-wider bg-blue-50 px-2 py-0.5 rounded">
+                        <span class="text-[10px] font-bold text-blue-600 uppercase tracking-wider bg-blue-50 px-2 py-0.5 rounded">
                             {{ item.product.category.name }}
                         </span>
                         <h3 class="text-sm font-bold text-slate-900 mt-1 line-clamp-1">
-                            <a href="{% url 'product_detail' item.product.slug %}"
-                                class="hover:text-blue-600 transition">
+                            <a href="{% url 'product_detail' item.product.slug %}" class="hover:text-blue-600 transition">
                                 {{ item.product.name }}
                             </a>
                         </h3>
                         <p class="text-xs text-slate-400 font-mono">SKU: {{ item.product.sku }}</p>
                         <p class="text-xs text-slate-600 font-medium mt-1">
-                            <span class="unit-price">{{ item.product.price }}</span> RON <span
-                                class="text-slate-400 font-normal">/ unit</span>
+                            <span class="unit-price">{{ item.product.price }}</span> RON 
+                            <span class="text-slate-400 font-normal">/ unit</span>
                         </p>
                     </div>
                 </div>
 
                 <!-- Controale Cantitate & Preț Linie -->
-                <div
-                    class="flex items-center justify-between sm:justify-end gap-6 border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100">
+                <div class="flex items-center justify-between sm:justify-end gap-6 border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100">
 
                     <!-- Counter Incrementare / Decrementare -->
                     <div class="flex items-center border border-slate-200 rounded-xl bg-slate-50 p-1">
@@ -84,7 +78,7 @@
                         <span class="text-xs font-bold text-slate-900">RON</span>
                     </div>
 
-                    <!-- Buton Eliminare -->
+                    <!-- Buton Eliminare Produs -->
                     <form method="POST" action="{% url 'remove_cart_item' item.id %}" class="shrink-0">
                         {% csrf_token %}
                         <button type="submit"
@@ -101,9 +95,42 @@
             {% endfor %}
         </div>
 
-        <!-- Coloana Dreaptă: Sumar Comandă & Checkout Form -->
-        <div class="lg:col-span-4">
-            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm sticky top-24 space-y-5">
+        <!-- Coloana Dreaptă: Sumar Comandă, Cupon Promoțional & Checkout -->
+        <div class="lg:col-span-4 space-y-4">
+
+            <!-- Secțiune Cupon Promoțional -->
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">Promotional Code</h3>
+                
+                {% if active_coupon %}
+                    <div class="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold text-emerald-800 tracking-wide font-mono">{{ active_coupon.code }}</span>
+                            <span class="text-[11px] text-emerald-600">
+                                (-{% if active_coupon.discount_type == 'percentage' %}{{ active_coupon.discount_value|floatformat:0 }}%{% else %}{{ active_coupon.discount_value }} RON{% endif %})
+                            </span>
+                        </div>
+                        <form method="POST" action="{% url 'remove_coupon' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="text-xs font-semibold text-rose-600 hover:text-rose-800 transition">
+                                Remove
+                            </button>
+                        </form>
+                    </div>
+                {% else %}
+                    <form method="POST" action="{% url 'apply_coupon' %}" class="flex gap-2">
+                        {% csrf_token %}
+                        <input type="text" name="code" placeholder="Enter coupon code (e.g. TECH10)"
+                               class="flex-1 px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none uppercase font-mono">
+                        <button type="submit" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg transition shadow-sm">
+                            Apply
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
+
+            <!-- Formular Sumar & Plată -->
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
                 <h2 class="text-base font-bold text-slate-900 uppercase tracking-wider">Order Summary</h2>
 
                 <form method="POST" action="{% url 'checkout' %}" class="space-y-4">
@@ -111,11 +138,9 @@
 
                     <!-- Selecție Metode de Livrare -->
                     <div class="space-y-2">
-                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">Shipping
-                            Method</label>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">Shipping Method</label>
 
-                        <label
-                            class="flex items-center justify-between p-3 border border-slate-200 rounded-xl cursor-pointer hover:border-blue-500 transition">
+                        <label class="flex items-center justify-between p-3 border border-slate-200 rounded-xl cursor-pointer hover:border-blue-500 transition">
                             <div class="flex items-center gap-2.5">
                                 <input type="radio" name="shipping_method" value="standard" checked
                                     class="shipping-radio text-blue-600 focus:ring-blue-500" data-cost="0.00">
@@ -127,33 +152,45 @@
                             <span class="text-xs font-bold text-emerald-600 uppercase">Free</span>
                         </label>
 
-                        <label
-                            class="flex items-center justify-between p-3 border border-slate-200 rounded-xl cursor-pointer hover:border-blue-500 transition">
+                        <label class="flex items-center justify-between p-3 border border-slate-200 rounded-xl cursor-pointer hover:border-blue-500 transition">
                             <div class="flex items-center gap-2.5">
                                 <input type="radio" name="shipping_method" value="express"
                                     class="shipping-radio text-blue-600 focus:ring-blue-500" data-cost="49.99">
                                 <div>
                                     <p class="text-xs font-semibold text-slate-800">Express Courier</p>
-                                    <p class="text-[10px] text-slate-400">Next-day guaranteed delivery</p>
+                                    <p class="text-[10px] text-slate-400">Next-day delivery</p>
                                 </div>
                             </div>
                             <span class="text-xs font-bold text-slate-900">+49.99 RON</span>
                         </label>
                     </div>
 
-                    <!-- Detalii Costuri -->
+                    <!-- Defalcare Costuri -->
                     <div class="space-y-3 text-xs text-slate-600 border-t border-b border-slate-100 py-4">
                         <div class="flex justify-between">
-                            <span>Items Subtotal</span>
-                            <span id="summary-subtotal" class="font-bold text-slate-800"
-                                data-subtotal="{{ total_price }}">
-                                {{ total_price }} RON
+                            <span>Subtotal</span>
+                            <span id="summary-subtotal" class="font-bold text-slate-800" data-subtotal="{{ subtotal }}">
+                                {{ subtotal }} RON
                             </span>
                         </div>
+
+                        {% if discount > 0 %}
+                        <div class="flex justify-between text-emerald-600 font-semibold">
+                            <span>Coupon Discount ({{ active_coupon.code }})</span>
+                            <span id="summary-discount" data-discount="{{ discount }}">-{{ discount }} RON</span>
+                        </div>
+                        {% else %}
+                        <div id="summary-discount-row" class="hidden flex justify-between text-emerald-600 font-semibold">
+                            <span>Discount</span>
+                            <span id="summary-discount" data-discount="0.00">-0.00 RON</span>
+                        </div>
+                        {% endif %}
+
                         <div class="flex justify-between">
                             <span>Shipping Fee</span>
                             <span id="summary-shipping" class="font-bold text-emerald-600 uppercase">Free</span>
                         </div>
+
                         <div class="flex justify-between">
                             <span>VAT (Included)</span>
                             <span class="text-slate-400">19%</span>
@@ -164,8 +201,8 @@
                     <div class="flex justify-between items-baseline pt-1">
                         <span class="text-sm font-bold text-slate-900">Total Due</span>
                         <div class="text-right">
-                            <span id="cart-grand-total" class="text-2xl font-black text-slate-900">
-                                {{ total_price }}
+                            <span id="cart-grand-total" class="text-2xl font-black text-slate-900" data-base-total="{{ total }}">
+                                {{ total }}
                             </span>
                             <span class="text-xs font-bold text-slate-900">RON</span>
                         </div>
@@ -176,8 +213,7 @@
                         class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl text-center text-sm transition shadow-sm flex items-center justify-center gap-2 cursor-pointer">
                         Proceed to Checkout
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
                         </svg>
                     </button>
                 </form>
@@ -207,8 +243,7 @@
             </svg>
         </div>
         <h2 class="text-xl font-bold text-slate-900">Your Cart is Empty</h2>
-        <p class="text-xs text-slate-500 mt-2 mb-6">Looks like you haven't added any CPUs, memory modules, or PLCs yet.
-        </p>
+        <p class="text-xs text-slate-500 mt-2 mb-6">Looks like you haven't added any CPUs, memory modules, or PLCs yet.</p>
         <a href="{% url 'product_list' %}"
             class="inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-5 py-2.5 rounded-xl transition shadow-sm">
             Browse Tech Catalog
@@ -218,7 +253,7 @@
 
 </div>
 
-<!-- Script Asincron AJAX / Fetch API + Live Shipping Calculation -->
+<!-- Script Asincron AJAX / Fetch API + Live Shipping & Discount Calculation -->
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         function getCsrfToken() {
@@ -241,12 +276,13 @@
         const csrftoken = getCsrfToken();
         const summarySubtotal = document.getElementById('summary-subtotal');
         const summaryShipping = document.getElementById('summary-shipping');
+        const summaryDiscount = document.getElementById('summary-discount');
         const grandTotal = document.getElementById('cart-grand-total');
 
-        // Funcție comună pentru recalcularea totalului (Subtotal + Livrare)
         function recalculateGrandTotal() {
             if (!summarySubtotal || !grandTotal) return;
             const currentSubtotal = parseFloat(summarySubtotal.dataset.subtotal) || 0;
+            const discountVal = summaryDiscount ? (parseFloat(summaryDiscount.dataset.discount) || 0) : 0;
             const selectedShipping = document.querySelector('.shipping-radio:checked');
             const shippingCost = selectedShipping ? parseFloat(selectedShipping.dataset.cost) : 0;
 
@@ -260,10 +296,10 @@
                 }
             }
 
-            grandTotal.textContent = (currentSubtotal + shippingCost).toFixed(2);
+            const finalPrice = Math.max(0, currentSubtotal - discountVal) + shippingCost;
+            grandTotal.textContent = finalPrice.toFixed(2);
         }
 
-        // Ascultător pentru schimbarea metodei de livrare
         document.querySelectorAll('.shipping-radio').forEach(radio => {
             radio.addEventListener('change', recalculateGrandTotal);
         });
