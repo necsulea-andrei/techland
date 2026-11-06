@@ -80,13 +80,23 @@ class ProductImageAdmin(admin.ModelAdmin):
     image_preview.short_description = "Active preview"
 
 
+from django.contrib import admin
+from .models import Review
+
 @admin.register(Review)
 class ReviewAdmin(admin.ModelAdmin):
-    list_display = ('id', 'product', 'user', 'rating_stars', 'created_at')
-    list_filter = ('rating', 'created_at')
+    list_display = ('product', 'user', 'rating', 'is_visible', 'created_at')
+    list_editable = ('is_visible',)  # Poate bifa/debifa direct din tabel
+    list_filter = ('is_visible', 'rating', 'created_at')
     search_fields = ('product__name', 'user__username', 'comment')
-    readonly_fields = ('created_at',)
+    actions = ['hide_reviews', 'show_reviews']
 
-    def rating_stars(self, obj):
-        return "★" * obj.rating + "☆" * (5 - obj.rating)
-    rating_stars.short_description = "Rating"
+    @admin.action(description="(Hide selected reviews is_visible=False)")
+    def hide_reviews(self, request, queryset):
+        updated = queryset.update(is_visible=False)
+        self.message_user(request, f"{updated} reviews have been hidden from the store.")
+
+    @admin.action(description="Show selected reviews (is_visible=True)")
+    def show_reviews(self, request, queryset):
+        updated = queryset.update(is_visible=True)
+        self.message_user(request, f"{updated} reviews have been marked visible.")

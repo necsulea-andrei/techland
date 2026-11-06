@@ -16,6 +16,12 @@ urlpatterns = [
     path('catalog/', catalog_views.product_list, name='product_list'),
     path('catalog/category/<slug:category_slug>/', catalog_views.product_list, name='product_list_by_category'),
     path('catalog/product/<slug:slug>/', catalog_views.product_detail, name='product_detail'),
+    path('catalog/product/<int:product_id>/add-review/', catalog_views.add_review, name='add_review'),
+
+    path('wishlist/', catalog_views.wishlist_view, name='wishlist_view'),
+    path('wishlist/toggle/<int:product_id>/', catalog_views.toggle_wishlist, name='toggle_wishlist'),
+    path('wishlist/remove/<int:product_id>/', catalog_views.remove_from_wishlist, name='remove_from_wishlist'),
+    path('wishlist/move-to-cart/<int:product_id>/', catalog_views.wishlist_to_cart, name='wishlist_to_cart'),
 
 #Auth endpoints (A4)
     path('login/', auth_views.LoginView.as_view(template_name='accounts/login.html'), name='login'),

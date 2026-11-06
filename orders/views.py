@@ -10,8 +10,10 @@ from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.contrib import messages
-
-from .models import Cart, CartItem, Order, OrderItem
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+from .models import Cart, CartItem, Order, OrderItem, Coupon
 from catalog.models import Product
 from accounts.models import Address, UserAddress
 
@@ -27,14 +29,39 @@ def get_or_create_user_cart(user):
     return cart
 
 
-@login_required
 def view_cart(request):
-    cart = get_or_create_user_cart(request.user)
-    items = cart.items.select_related('product', 'product__category').all()
+    if not request.user.is_authenticated:
+        return render(request, 'orders/cart.html', {'cart': None, 'subtotal': 0, 'discount': 0, 'total': 0})
+
+    cart, _ = Cart.objects.get_or_create(user=request.user)
+    items = cart.items.select_related('product')
+    
+    subtotal = sum(item.product.price * item.quantity for item in items)
+    discount = Decimal('0.00')
+    active_coupon = None
+
+    coupon_id = request.session.get('coupon_id')
+    if coupon_id:
+        coupon = Coupon.objects.filter(id=coupon_id).first()
+        if coupon:
+            valid, _ = coupon.is_valid(subtotal=subtotal)
+            if valid:
+                active_coupon = coupon
+                discount = coupon.calculate_discount(subtotal)
+            else:
+                del request.session['coupon_id']
+        else:
+            del request.session['coupon_id']
+
+    total = max(Decimal('0.00'), subtotal - discount)
+
     return render(request, 'orders/cart.html', {
         'cart': cart,
         'items': items,
-        'total_price': cart.total_price
+        'subtotal': subtotal,
+        'discount': discount,
+        'total': total,
+        'active_coupon': active_coupon,
     })
 
 
@@ -138,9 +165,30 @@ def create_checkout_session(request):
     user_addr = UserAddress.objects.filter(user=request.user, is_default=True).first()
     if not user_addr:
         user_addr = UserAddress.objects.filter(user=request.user).first()
-    
     address = user_addr.address if user_addr else None
-    total_with_shipping = cart.total_price + shipping_cost
+
+    # 1. Calcul subtotal produse
+    subtotal = cart.total_price
+
+    # 2. Verificare cupon din sesiune și calcul discount
+    discount_amount = Decimal('0.00')
+    active_coupon = None
+    coupon_id = request.session.get('coupon_id')
+
+    if coupon_id:
+        coupon = Coupon.objects.filter(id=coupon_id).first()
+        if coupon:
+            is_valid, _ = coupon.is_valid(subtotal=subtotal)
+            if is_valid:
+                active_coupon = coupon
+                discount_amount = coupon.calculate_discount(subtotal)
+            else:
+                del request.session['coupon_id']
+        else:
+            del request.session['coupon_id']
+
+    # 3. Calcul total final (produse - discount + transport)
+    total_with_shipping = max(Decimal('0.00'), subtotal - discount_amount) + shipping_cost
 
     with transaction.atomic():
         order = Order.objects.create(
@@ -179,13 +227,30 @@ def create_checkout_session(request):
             'quantity': 1,
         })
 
+    # 4. Creare cupon Stripe dinamic dacă avem discount activ
+    stripe_discounts = []
+    if discount_amount > 0 and active_coupon:
+        stripe_coupon = stripe.Coupon.create(
+            amount_off=int(discount_amount * 100),
+            currency='ron',
+            duration='once',
+            name=f"Coupon: {active_coupon.code}"
+        )
+        stripe_discounts.append({'coupon': stripe_coupon.id})
+
     domain_url = request.build_absolute_uri('/')[:-1]
+    
     checkout_session = stripe.checkout.Session.create(
         line_items=stripe_line_items,
+        discounts=stripe_discounts,  # <--- Aplică reducerea direct pe Stripe Checkout
         mode='payment',
         client_reference_id=str(order.id),
-        metadata={'order_id': order.id},
-        success_url=domain_url + reverse('order_success') + f'?order_id={order.id}',
+        metadata={
+            'order_id': order.id,
+            'coupon_id': active_coupon.id if active_coupon else '',
+            'discount_amount': str(discount_amount)
+        },
+        success_url=domain_url + reverse('order_success') + f'?order_id={order.id}&session_id={{CHECKOUT_SESSION_ID}}',
         cancel_url=domain_url + reverse('order_cancel') + f'?order_id={order.id}',
     )
 
@@ -195,27 +260,47 @@ def create_checkout_session(request):
 @login_required
 def order_success(request):
     order_id = request.GET.get('order_id')
+    session_id = request.GET.get('session_id')
+    
     order = get_object_or_404(Order, id=order_id, user=request.user)
 
-    # Scădere stoc și marcare comandă ca Paid
-    with transaction.atomic():
-        order_locked = Order.objects.select_for_update().get(id=order.id)
-        
-        # Rulăm scăderea de stoc doar dacă nu a fost deja marcată ca Paid de webhook
-        if order_locked.status != 'Paid':
-            order_locked.status = 'Paid'
-            order_locked.save(update_fields=['status'])
+    # 1. Preluare email completat pe Stripe (dacă există)
+    stripe_email = None
+    if session_id:
+        try:
+            checkout_session = stripe.checkout.Session.retrieve(session_id)
+            if checkout_session.customer_details:
+                stripe_email = checkout_session.customer_details.email
+        except Exception as e:
+            print(f">>> [ERROR RETRIEVE STRIPE]: {e}")
 
-            for item in order_locked.items.select_related('product'):
-                prod = Product.objects.select_for_update().get(id=item.product.id)
-                prod.stock = max(0, prod.stock - item.quantity)
-                prod.save(update_fields=['stock'])
+    # 2. Marcarea comenzii ca plătită
+    if order.status != 'Paid':
+        order.status = 'Paid'
+        order.save(update_fields=['status'])
 
-    # Curățăm coșul utilizatorului
-    cart = get_or_create_user_cart(request.user)
-    cart.items.all().delete()
+        # Scădere stoc produse
+        for item in order.items.all():
+            if item.product.stock >= item.quantity:
+                item.product.stock -= item.quantity
+                item.product.save(update_fields=['stock'])
 
-    return render(request, 'orders/success.html', {'order': order_locked})
+    # 3. GOLIREA COȘULUI UTILIZATORULUI
+    user_cart = Cart.objects.filter(user=request.user).first()
+    if user_cart:
+        user_cart.items.all().delete()  # Șterge elementele din coș
+
+    # Curățare cupon din sesiune
+    if 'coupon_id' in request.session:
+        del request.session['coupon_id']
+
+    # 4. Trimitere email confirmare
+    try:
+        send_order_confirmation_email(order, recipient_email=stripe_email)
+    except Exception as e:
+        print(f">>> [ERROR SENT EMAIL]: {e}")
+
+    return render(request, 'orders/success.html', {'order': order})
 
 
 @require_POST
@@ -255,41 +340,60 @@ def order_history(request):
 def stripe_webhook(request):
     payload = request.body
     sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
-    endpoint_secret = settings.STRIPE_WEBHOOK_SECRET
+    endpoint_secret = getattr(settings, 'STRIPE_WEBHOOK_SECRET', None)
 
+    event = None
     try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, endpoint_secret
-        )
-    except (ValueError, stripe.error.SignatureVerificationError):
+        if endpoint_secret:
+            event = stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)
+        else:
+            import json
+            data = json.loads(payload)
+            event = stripe.Event.construct_from(data, stripe.api_key)
+    except Exception as e:
         return HttpResponse(status=400)
 
+    # Eveniment declanșat când plata a fost aprobată
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
+
+        # Preluare sigură ID comandă
         order_id = session.get('client_reference_id') or session.get('metadata', {}).get('order_id')
+
+        # Preluare sigură email introdus în Stripe Checkout
+        customer_details = getattr(session, 'customer_details', None) or session.get('customer_details')
+        stripe_email = None
+        if customer_details:
+            stripe_email = getattr(customer_details, 'email', None) or customer_details.get('email')
 
         if order_id:
             try:
-                with transaction.atomic():
-                    order = Order.objects.select_for_update().get(id=order_id)
-                    
-                    # Verificăm să nu procesăm de două ori același eveniment
-                    if order.status != 'Paid':
-                        order.status = 'Paid'
-                        order.stripe_payment_intent = session.get('payment_intent', '')
-                        order.save()
+                order = Order.objects.get(id=order_id)
+                if order.status != 'Paid':
+                    order.status = 'Paid'
+                    order.save(update_fields=['status'])
 
-                        # Scădere stoc pentru fiecare produs comandat
-                        for item in order.items.select_related('product'):
-                            product = Product.objects.select_for_update().get(id=item.product.id)
-                            product.stock = max(0, product.stock - item.quantity)
-                            product.save()
+                    # Scădere stoc produse
+                    for item in order.items.all():
+                        if item.product.stock >= item.quantity:
+                            item.product.stock -= item.quantity
+                            item.product.save(update_fields=['stock'])
 
-                        # Golire coș pentru utilizator
+                    # Incrementare contor cupon (dacă s-a folosit)
+                    metadata = session.get('metadata', {})
+                    coupon_id = metadata.get('coupon_id') if metadata else None
+                    if coupon_id:
+                        Coupon.objects.filter(id=coupon_id).update(used_count=F('used_count') + 1)
+
+                    # Golire coș utilizator după plată reușită
+                    if order.user:
                         Cart.objects.filter(user=order.user).delete()
 
+                    # Trimitere email de confirmare
+                    send_order_confirmation_email(order, recipient_email=stripe_email)
+
             except Order.DoesNotExist:
-                return HttpResponse(status=404)
+                pass
 
     return HttpResponse(status=200)
 
@@ -320,3 +424,64 @@ def fulfill_order_atomic(order_id, payment_intent_id):
         order.status = 'Paid'
         order.stripe_payment_intent = payment_intent_id
         order.save()
+
+
+@require_POST
+def apply_coupon(request):
+    code = request.POST.get('code', '').strip().upper()
+    if not code:
+        messages.error(request, "Please enter a promotional code.")
+        return redirect('view_cart')
+
+    # Calculăm subtotalul curent al coșului utilizatorului
+    cart = Cart.objects.filter(user=request.user).first() if request.user.is_authenticated else None
+    if not cart or not cart.items.exists():
+        messages.error(request, "Your cart is empty.")
+        return redirect('view_cart')
+
+    subtotal = sum(item.product.price * item.quantity for item in cart.items.all())
+
+    coupon = Coupon.objects.filter(code__iexact=code).first()
+    if not coupon:
+        messages.error(request, "Invalid coupon code.")
+        return redirect('view_cart')
+
+    is_valid, error_message = coupon.is_valid(subtotal=subtotal)
+    if not is_valid:
+        messages.error(request, error_message)
+        return redirect('view_cart')
+
+    # Salvăm ID-ul cuponului în sesiune
+    request.session['coupon_id'] = coupon.id
+    messages.success(request, f"Coupon '{coupon.code}' applied successfully!")
+    return redirect('view_cart')
+
+
+@require_POST
+def remove_coupon(request):
+    if 'coupon_id' in request.session:
+        del request.session['coupon_id']
+        messages.info(request, "Promotional code removed.")
+    return redirect('view_cart')
+
+
+def send_order_confirmation_email(order, recipient_email=None):
+    subject = f"TechLand — Order Confirmation #{order.id}"
+    target_email = recipient_email or (order.user.email if order.user else None)
+
+    if not target_email:
+        print(">>> [WARN MAIL] No email address for this order!")
+        return
+
+    context = {'order': order}
+    html_content = render_to_string('emails/order_confirmation.html', context)
+    text_content = strip_tags(html_content)
+
+    email = EmailMultiAlternatives(
+        subject=subject,
+        body=text_content,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[target_email]
+    )
+    email.attach_alternative(html_content, "text/html")
+    email.send(fail_silently=False)

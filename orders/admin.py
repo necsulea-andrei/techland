@@ -3,6 +3,7 @@ from django.utils.html import format_html
 from django.db import transaction
 from .models import Order, OrderItem, Cart, CartItem
 from catalog.models import Product
+from .models import Coupon
 
 
 class OrderItemInline(admin.TabularInline):
@@ -107,3 +108,11 @@ class CartAdmin(admin.ModelAdmin):
     def total_items_count(self, obj):
         return sum(item.quantity for item in obj.items.all())
     total_items_count.short_description = "Total Articole în Coș"
+
+
+@admin.register(Coupon)
+class CouponAdmin(admin.ModelAdmin):
+    list_display = ('code', 'discount_type', 'discount_value', 'min_order_amount', 'used_count', 'max_uses', 'valid_to', 'is_active')
+    list_filter = ('discount_type', 'is_active', 'valid_to')
+    search_fields = ('code',)
+    readonly_fields = ('used_count',)

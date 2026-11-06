@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f8fafc; padding: 20px; color: #1e293b; }
+        .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 30px; }
+        .header { border-bottom: 2px solid #2563eb; padding-bottom: 15px; margin-bottom: 20px; }
+        .header h1 { margin: 0; color: #0f172a; font-size: 22px; }
+        .details { margin-bottom: 20px; font-size: 14px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
+        th, td { padding: 10px; border-bottom: 1px solid #f1f5f9; text-align: left; }
+        th { background-color: #f8fafc; color: #64748b; font-size: 11px; text-transform: uppercase; }
+        .total { text-align: right; font-weight: bold; font-size: 16px; margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Order Confirmation #{{ order.id }}</h1>
+            <p style="margin: 5px 0 0; color: #64748b; font-size: 13px;">Thank you for your purchase with TechLand!</p>
+        </div>
+
+        <div class="details">
+            <p><strong>Customer:</strong> {{ order.user.username }} ({{ order.user.email }})</p>
+            <p><strong>Shipping Address:</strong> {{ order.shipping_address|default:"Not specified" }}</p>
+            <p><strong>Shipping Method:</strong> {{ order.get_shipping_method_display|default:order.shipping_method }}</p>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in order.items.all %}
+                <tr>
+                    <td>{{ item.product.name }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ item.unit_price }} RON</td>
+                    <td>{% widthratio item.unit_price 1 item.quantity %} RON</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="total">
+            Total Paid: {{ order.total_amount }} RON
+        </div>
+    </div>
+</body>
+</html>
